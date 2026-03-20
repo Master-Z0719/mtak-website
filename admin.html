@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MTAK Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Antonio:wght@400;500;700&family=Manrope:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-page="admin">
+  <div class="site-shell site-shell--admin">
+    <header class="admin-hero">
+      <nav class="topbar">
+        <a class="brand-mark" href="index.html">
+          <span class="brand-pill">
+            <span class="brand-pill__icon">
+              <svg viewBox="0 0 40 40" aria-hidden="true">
+                <path d="M20 7L30 28H24L20 19L16 28H10L20 7Z" fill="currentColor"></path>
+              </svg>
+            </span>
+          </span>
+          <span class="brand-copy">
+            <span class="brand-mark__title">MTAK</span>
+            <span class="brand-mark__tag">more than a knuckle</span>
+          </span>
+        </a>
+        <div class="topbar__actions">
+          <a class="ghost-link" href="index.html">Visitor View</a>
+          <button id="logoutButton" class="ghost-link ghost-link--button" type="button">退出登录</button>
+        </div>
+      </nav>
+
+      <div class="admin-hero__content">
+        <section class="hero__copy hero__copy--admin">
+          <p class="eyebrow">Admin Dashboard</p>
+          <h1>管理产品、系列、发售方式和登录信息。</h1>
+          <p class="hero__text">图片本地上传即可，前台访客会直接浏览你维护好的产品档案。</p>
+        </section>
+
+        <aside class="hero__panel">
+          <div class="stat-card stat-card--visual">
+            <img class="logo-art" src="微信图片_2026-03-20_220011_165.jpg" alt="MTAK logo">
+          </div>
+          <div class="stat-card">
+            <span class="stat-card__label">Admin Access</span>
+            <strong id="credentialHint">admin</strong>
+            <p>后台账号由服务端保存。你可以在“管理员设置”里更新账号和密码。</p>
+          </div>
+        </aside>
+      </div>
+    </header>
+
+    <main class="admin-layout">
+      <section class="panel panel--form">
+        <div class="panel__header">
+          <div>
+            <p class="section__eyebrow">Product Editor</p>
+            <h2 id="formTitle">新增产品</h2>
+          </div>
+          <p class="panel__hint">系列与发售方式由你自行维护，不再预设写死。</p>
+        </div>
+
+        <form id="productForm" class="product-form">
+          <input type="hidden" id="productId">
+
+          <label class="field">
+            <span>产品图片</span>
+            <input id="imageInput" name="image" type="file" accept="image/*">
+          </label>
+
+          <div id="imagePreview" class="image-preview image-preview--empty">
+            <span>上传后将在这里预览</span>
+          </div>
+
+          <label class="field">
+            <span>产品名称</span>
+            <input id="nameInput" name="name" type="text" placeholder="例如：MTAK xxx" required>
+          </label>
+
+          <div class="form-grid">
+            <label class="field">
+              <span>系列</span>
+              <input id="seriesInput" name="series" type="text" list="seriesOptions" placeholder="输入或选择系列" required>
+              <datalist id="seriesOptions"></datalist>
+            </label>
+
+            <label class="field">
+              <span>发售方式</span>
+              <input id="methodInput" name="method" type="text" list="methodOptions" placeholder="输入或选择发售方式" required>
+              <datalist id="methodOptions"></datalist>
+            </label>
+          </div>
+
+          <div class="form-grid">
+            <label class="field">
+              <span>价格</span>
+              <input id="priceInput" name="price" type="number" min="0" step="0.01" placeholder="1299" required>
+            </label>
+
+            <label class="field">
+              <span>限量数量</span>
+              <input id="quantityInput" name="quantity" type="number" min="1" step="1" placeholder="88" required>
+            </label>
+          </div>
+
+          <div class="form-grid form-grid--collab">
+            <label class="toggle-field" for="isCollabInput">
+              <span>是否联名</span>
+              <button id="isCollabInput" class="switch" type="button" role="switch" aria-checked="false">
+                <span class="switch__thumb"></span>
+              </button>
+            </label>
+
+            <label class="field" id="collabBrandField" hidden>
+              <span>联名品牌名</span>
+              <input id="collabBrandInput" name="collabBrand" type="text" placeholder="例如：Tashi / xxx">
+            </label>
+          </div>
+
+          <label class="field">
+            <span>发售日期</span>
+            <input id="releaseDateInput" name="releaseDate" type="date" required>
+          </label>
+
+          <label class="field">
+            <span>产品介绍</span>
+            <textarea id="introInput" name="intro" rows="6" placeholder="写下设计语言、材质、工艺或发售背景" required></textarea>
+          </label>
+
+          <div class="form-actions">
+            <button class="button button--primary" type="submit">保存产品</button>
+            <button id="cancelEditButton" class="button button--secondary" type="button">取消编辑</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel panel--stack">
+        <section class="subpanel">
+          <div class="panel__header">
+            <div>
+              <p class="section__eyebrow">Custom Options</p>
+              <h2>系列与发售方式</h2>
+            </div>
+          </div>
+
+          <div class="manager-grid">
+            <div class="option-manager">
+              <label class="field">
+                <span>新增系列</span>
+                <div class="inline-field">
+                  <input id="newSeriesInput" type="text" placeholder="例如：Signature">
+                  <button id="addSeriesButton" class="button button--secondary" type="button">添加</button>
+                </div>
+              </label>
+              <div id="seriesChips" class="chips"></div>
+            </div>
+
+            <div class="option-manager">
+              <label class="field">
+                <span>新增发售方式</span>
+                <div class="inline-field">
+                  <input id="newMethodInput" type="text" placeholder="例如：限时上架">
+                  <button id="addMethodButton" class="button button--secondary" type="button">添加</button>
+                </div>
+              </label>
+              <div id="methodChips" class="chips"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="subpanel">
+          <div class="panel__header">
+            <div>
+              <p class="section__eyebrow">Admin Settings</p>
+              <h2>管理员设置</h2>
+            </div>
+          </div>
+
+          <form id="credentialForm" class="product-form">
+            <label class="field">
+              <span>管理员账号</span>
+              <input id="adminUserInput" type="text" required>
+            </label>
+            <label class="field">
+              <span>管理员密码</span>
+              <input id="adminPasswordInput" type="password" required>
+            </label>
+            <button class="button button--primary" type="submit">更新账号密码</button>
+          </form>
+        </section>
+
+        <section class="subpanel">
+          <div class="panel__header">
+            <div>
+              <p class="section__eyebrow">Inventory</p>
+              <h2>已录入产品</h2>
+            </div>
+            <p id="adminCount" class="panel__hint">0 items</p>
+          </div>
+          <div id="adminList" class="admin-list"></div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <div id="authGate" class="auth-gate">
+    <div class="auth-card">
+      <img class="auth-card__logo" src="微信图片_2026-03-20_220011_165.jpg" alt="MTAK logo">
+      <p class="eyebrow">Admin Login</p>
+      <h2>MTAK 管理后台</h2>
+      <p class="auth-card__text">请输入管理员账号密码后进入后台。首次上线后建议立即修改默认密码。</p>
+      <form id="loginForm" class="product-form">
+        <label class="field">
+          <span>账号</span>
+          <input id="loginUsername" type="text" autocomplete="username" required>
+        </label>
+        <label class="field">
+          <span>密码</span>
+          <input id="loginPassword" type="password" autocomplete="current-password" required>
+        </label>
+        <button class="button button--primary" type="submit">进入后台</button>
+      </form>
+      <p id="loginError" class="login-error" hidden>账号或密码错误，请重试。</p>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
