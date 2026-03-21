@@ -9,6 +9,9 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 async function initCatalogPage() {
+  const heroCarouselImage = document.getElementById("heroCarouselImage");
+  const heroCarouselTitle = document.getElementById("heroCarouselTitle");
+  const heroCarouselMeta = document.getElementById("heroCarouselMeta");
   const seriesFilter = document.getElementById("seriesFilter");
   const collabFilter = document.getElementById("collabFilter");
   const collabSearch = document.getElementById("collabSearch");
@@ -47,6 +50,9 @@ async function initCatalogPage() {
   let archiveGroups = [];
   let activeRecordId = "";
   let currentView = "signal";
+  let archivePageState = {};
+  let heroCarouselIndex = 0;
+  let heroCarouselTimer = 0;
   let currentFilters = {
     series: "All series",
     collab: "all",
@@ -87,6 +93,10 @@ async function initCatalogPage() {
     }
 
     archiveGroups = buildArchiveGroups(filteredProducts, currentFilters);
+    archiveGroups.forEach((group) => {
+      const maxPage = Math.max(Math.ceil(group.items.length / 6) - 1, 0);
+      archivePageState[group.key] = Math.min(archivePageState[group.key] || 0, maxPage);
+    });
     count.textContent = `${filteredProducts.length} ${filteredProducts.length === 1 ? "record" : "records"}`;
     emptyState.hidden = filteredProducts.length > 0;
     grid.innerHTML = filteredProducts.map(renderProductCard).join("");
@@ -142,6 +152,7 @@ async function initCatalogPage() {
 
   products = await fetchProducts();
   activeRecordId = products[0]?.id || "";
+  startHeroCarousel();
   setView("signal");
   render();
 
@@ -169,7 +180,7 @@ async function initCatalogPage() {
     const relatedIds = new Set(selectedRelations);
 
     archiveStage.innerHTML = archiveGroups
-      .map((group) => renderArchiveRail(group, activeRecordId, relatedIds))
+      .map((group) => renderArchiveRail(group, activeRecordId, relatedIds, archivePageState[group.key] || 0))
       .join("");
 
     archiveStage.querySelectorAll("[data-record-id]").forEach((button) => {
@@ -192,6 +203,21 @@ async function initCatalogPage() {
         activeRecordId = product.id;
         renderArchiveRails(currentFilters);
         renderRecordPanel();
+      });
+    });
+
+    archiveStage.querySelectorAll("[data-rail-page]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const key = button.dataset.railKey;
+        const direction = Number(button.dataset.railPage || 0);
+        const group = archiveGroups.find((item) => item.key === key);
+        if (!group) {
+          return;
+        }
+        const maxPage = Math.max(Math.ceil(group.items.length / 6) - 1, 0);
+        const nextPage = Math.min(Math.max((archivePageState[key] || 0) + direction, 0), maxPage);
+        archivePageState[key] = nextPage;
+        renderArchiveRails(currentFilters);
       });
     });
   }
@@ -251,6 +277,35 @@ async function initCatalogPage() {
 
   function getActiveRecord() {
     return filteredProducts.find((item) => item.id === activeRecordId) || filteredProducts[0] || null;
+  }
+
+  function startHeroCarousel() {
+    if (!products.length) {
+      return;
+    }
+    updateHeroCarousel();
+    if (heroCarouselTimer) {
+      clearInterval(heroCarouselTimer);
+    }
+    heroCarouselTimer = window.setInterval(() => {
+      heroCarouselIndex = (heroCarouselIndex + 1) % products.length;
+      updateHeroCarousel();
+    }, 3600);
+  }
+
+  function updateHeroCarousel() {
+    const product = products[heroCarouselIndex];
+    if (!product) {
+      return;
+    }
+    heroCarouselImage.classList.remove("is-visible");
+    window.setTimeout(() => {
+      heroCarouselImage.src = product.image;
+      heroCarouselImage.alt = product.name;
+      heroCarouselTitle.textContent = product.name;
+      heroCarouselMeta.textContent = `${product.series || "Archive"} / ${formatArchiveDate(product.releaseDate)} / ${getShortTypeLabel(product)}`;
+      heroCarouselImage.classList.add("is-visible");
+    }, 180);
   }
 }
 
@@ -664,7 +719,12 @@ function getArchiveGroup(product, filters) {
   };
 }
 
-function renderArchiveRail(group, activeRecordId, relatedIds) {
+function renderArchiveRail(group, activeRecordId, relatedIds, page) {
+  const pageSize = 6;
+  const maxPage = Math.max(Math.ceil(group.items.length / pageSize) - 1, 0);
+  const currentPage = Math.min(page, maxPage);
+  const start = currentPage * pageSize;
+  const visibleItems = group.items.slice(start, start + pageSize);
   return `
     <section class="archive-rail">
       <div class="archive-rail__meta">
@@ -672,10 +732,23 @@ function renderArchiveRail(group, activeRecordId, relatedIds) {
           <h3>${escapeHtml(group.title)}</h3>
           <p>${escapeHtml(group.note)}</p>
         </div>
-        <span class="archive-rail__count">${group.items.length} ${group.items.length === 1 ? "record" : "records"}</span>
+        <div class="archive-rail__controls">
+          <span class="archive-rail__count">${group.items.length} ${group.items.length === 1 ? "record" : "records"}</span>
+          ${
+            maxPage > 0
+              ? `
+                <div class="archive-rail__pager">
+                  <button class="archive-rail__pager-button" type="button" data-rail-key="${escapeHtml(group.key)}" data-rail-page="-1" ${currentPage === 0 ? "disabled" : ""}>Prev</button>
+                  <span class="archive-rail__page">${currentPage + 1}/${maxPage + 1}</span>
+                  <button class="archive-rail__pager-button" type="button" data-rail-key="${escapeHtml(group.key)}" data-rail-page="1" ${currentPage >= maxPage ? "disabled" : ""}>Next</button>
+                </div>
+              `
+              : ""
+          }
+        </div>
       </div>
       <div class="archive-rail__track">
-        ${group.items.map((product) => renderArchiveCapsule(product, product.id === activeRecordId, relatedIds.has(product.id))).join("")}
+        ${visibleItems.map((product) => renderArchiveCapsule(product, product.id === activeRecordId, relatedIds.has(product.id))).join("")}
       </div>
     </section>
   `;
