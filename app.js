@@ -411,7 +411,7 @@ function renderProductCard(product) {
           <div>
             <h3>${escapeHtml(product.name)}</h3>
           </div>
-          <span class="price-tag">¥${formatPrice(product.price)}</span>
+          <span class="price-tag">${getPriceDisplay(product)}</span>
         </div>
         <div class="pill-row">
           <span class="pill">限量 ${product.quantity}</span>
@@ -444,7 +444,7 @@ function renderAdminItem(product) {
             <p class="eyebrow">${escapeHtml(product.series)}</p>
             <h3>${escapeHtml(product.name)}</h3>
           </div>
-          <strong class="price-tag">¥${formatPrice(product.price)}</strong>
+          <strong class="price-tag">${getPriceDisplay(product)}</strong>
         </div>
         <p class="muted">${formatDate(product.releaseDate)} · ${escapeHtml(product.method)}</p>
         <div class="admin-item__footer">
@@ -483,7 +483,7 @@ function openDialog(dialog, product) {
   document.getElementById("dialogName").textContent = product.name;
   document.getElementById("dialogIntro").textContent = product.intro;
   document.getElementById("dialogSpecs").innerHTML = `
-    <span class="spec-chip">¥${formatPrice(product.price)}</span>
+    <span class="spec-chip">${getPriceDisplay(product)}</span>
     <span class="spec-chip">限量 ${product.quantity}</span>
     <span class="spec-chip">${escapeHtml(product.method)}</span>
     ${collabChip}
@@ -545,6 +545,17 @@ function formatPrice(value) {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2
   }).format(value);
+}
+
+function isHiddenAuction(method) {
+  return String(method || "").trim() === "暗拍";
+}
+
+function getPriceDisplay(product) {
+  if (isHiddenAuction(product.method)) {
+    return "Unkown";
+  }
+  return `¥${formatPrice(product.price)}`;
 }
 
 function uniqueCleanList(values) {
