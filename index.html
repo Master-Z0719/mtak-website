@@ -70,70 +70,72 @@
 
     <main>
       <section class="section section--filters" id="catalog">
-        <div>
-          <p class="section__eyebrow">Visitor View</p>
-          <h2>Archive Browser</h2>
-        </div>
-        <div class="catalog-controls">
-          <div class="filters">
-            <label class="field field--compact">
-              <span>Series</span>
-              <select id="seriesFilter"></select>
-            </label>
-            <label class="field field--compact">
-              <span>Type</span>
-              <select id="collabFilter">
-                <option value="all">All products</option>
-                <option value="collab">Collaborations only</option>
-                <option value="regular">Non-collab only</option>
-              </select>
-            </label>
-            <label class="field field--compact field--wide">
-              <span>Collab Brand</span>
-              <input id="collabSearch" type="text" placeholder="Search a collab brand, e.g. Tashi">
-            </label>
-            <label class="field field--compact">
-              <span>Sort</span>
-              <select id="sortFilter">
-                <option value="release-desc">Latest release</option>
-                <option value="release-asc">Earliest release</option>
-                <option value="price-desc">Price: high to low</option>
-                <option value="price-asc">Price: low to high</option>
-              </select>
-            </label>
+        <div class="archive-toolbar">
+          <div class="archive-toolbar__intro">
+            <p class="section__eyebrow">Visitor View</p>
+            <h2>Structured Signal Archive</h2>
+            <p class="catalog-meta__hint">
+              Indexed archive rails present each MTAK product as a readable record capsule with live preview and lens-aware grouping.
+            </p>
           </div>
-          <div class="view-toggle" role="tablist" aria-label="Catalog views">
-            <button id="signalViewButton" class="view-toggle__button is-active" type="button" role="tab" aria-selected="true">
-              Signal View
-            </button>
-            <button id="gridViewButton" class="view-toggle__button" type="button" role="tab" aria-selected="false">
-              Grid View
-            </button>
+          <div class="archive-toolbar__controls">
+            <div class="view-toggle" role="tablist" aria-label="Catalog views">
+              <button id="signalViewButton" class="view-toggle__button is-active" type="button" role="tab" aria-selected="true">
+                Signal View
+              </button>
+              <button id="gridViewButton" class="view-toggle__button" type="button" role="tab" aria-selected="false">
+                Grid View
+              </button>
+            </div>
+            <div class="filters filters--archive">
+              <label class="field field--compact">
+                <span>Series</span>
+                <select id="seriesFilter"></select>
+              </label>
+              <label class="field field--compact">
+                <span>Type</span>
+                <select id="collabFilter">
+                  <option value="all">All products</option>
+                  <option value="collab">Collaborations only</option>
+                  <option value="regular">Non-collab only</option>
+                </select>
+              </label>
+              <label class="field field--compact field--wide">
+                <span>Collab Brand</span>
+                <input id="collabSearch" type="text" placeholder="Search a collab brand, e.g. Tashi">
+              </label>
+              <label class="field field--compact">
+                <span>Sort</span>
+                <select id="sortFilter">
+                  <option value="release-desc">Latest release</option>
+                  <option value="release-asc">Earliest release</option>
+                  <option value="price-desc">Price: high to low</option>
+                  <option value="price-asc">Price: low to high</option>
+                </select>
+              </label>
+              <button id="resetArchiveButton" class="button button--secondary button--compact" type="button">Reset Lens</button>
+            </div>
           </div>
         </div>
       </section>
 
       <section id="signalArchiveSection" class="section section--archive">
-        <div class="catalog-meta">
-          <div>
-            <p class="section__eyebrow">Signal Archive</p>
-            <p class="catalog-meta__hint">Activate a lens to isolate records, surface relationships, and inspect product signals.</p>
-          </div>
-          <p id="archiveLensStatus" class="catalog-meta__hint">All records online</p>
-        </div>
         <div class="archive-layout">
-          <div class="archive-field">
-            <div class="archive-stage-wrap">
-              <svg id="archiveConnections" class="archive-connections" aria-hidden="true"></svg>
-              <div id="archiveStage" class="archive-stage" aria-label="Signal archive field"></div>
-              <div id="archiveHovercard" class="archive-hovercard" hidden></div>
+          <div class="archive-rails-shell">
+            <div class="archive-rails__header">
+              <div>
+                <p class="section__eyebrow">Archive Rails</p>
+                <p id="archiveLensStatus" class="catalog-meta__hint">All records online</p>
+              </div>
+              <p id="archiveRailSummary" class="archive-summary">0 active rails</p>
             </div>
+            <div id="archiveStage" class="archive-rails" aria-label="Structured archive rails"></div>
           </div>
           <aside id="recordPanel" class="record-panel">
-            <p class="section__eyebrow">Record Reveal</p>
+            <p class="section__eyebrow">Record Preview</p>
             <div id="recordPanelEmpty" class="record-panel__empty">
               <h3>No active record</h3>
-              <p>Select a signal node to inspect its archived metadata and related products.</p>
+              <p>Hover or select a record capsule to inspect the archived product preview.</p>
             </div>
             <div id="recordPanelContent" class="record-panel__content" hidden>
               <div class="record-panel__image">
@@ -150,10 +152,25 @@
               <p id="recordPanelIntro" class="dialog__intro"></p>
               <div id="recordPanelRelations" class="record-relations"></div>
               <div class="record-panel__actions">
-                <button id="recordOpenDialog" class="button button--primary" type="button">Open Full Record</button>
+                <button id="recordOpenDialog" class="button button--primary" type="button">Open Record</button>
               </div>
             </div>
           </aside>
+        </div>
+        <div class="status-strip">
+          <div class="status-strip__item">
+            <span class="status-strip__label">Mode</span>
+            <strong id="statusMode">Signal View</strong>
+          </div>
+          <div class="status-strip__item">
+            <span class="status-strip__label">Lens</span>
+            <strong id="statusLens">All Records</strong>
+          </div>
+          <div class="status-strip__item">
+            <span class="status-strip__label">Results</span>
+            <strong id="statusCount">0</strong>
+          </div>
+          <button id="statusResetButton" class="status-strip__action" type="button">Reset</button>
         </div>
       </section>
 

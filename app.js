@@ -13,13 +13,17 @@ async function initCatalogPage() {
   const collabFilter = document.getElementById("collabFilter");
   const collabSearch = document.getElementById("collabSearch");
   const sortFilter = document.getElementById("sortFilter");
+  const resetArchiveButton = document.getElementById("resetArchiveButton");
+  const statusResetButton = document.getElementById("statusResetButton");
+  const archiveRailSummary = document.getElementById("archiveRailSummary");
+  const statusMode = document.getElementById("statusMode");
+  const statusLens = document.getElementById("statusLens");
+  const statusCount = document.getElementById("statusCount");
   const signalViewButton = document.getElementById("signalViewButton");
   const gridViewButton = document.getElementById("gridViewButton");
   const signalArchiveSection = document.getElementById("signalArchiveSection");
   const gridSection = document.getElementById("gridSection");
   const archiveStage = document.getElementById("archiveStage");
-  const archiveConnections = document.getElementById("archiveConnections");
-  const archiveHovercard = document.getElementById("archiveHovercard");
   const archiveLensStatus = document.getElementById("archiveLensStatus");
   const recordPanel = document.getElementById("recordPanel");
   const recordPanelEmpty = document.getElementById("recordPanelEmpty");
@@ -39,10 +43,19 @@ async function initCatalogPage() {
   const closeDialog = document.getElementById("closeDialog");
 
   let products = [];
-  let archiveRecords = [];
+  let filteredProducts = [];
+  let archiveGroups = [];
   let activeRecordId = "";
+  let currentView = "signal";
+  let currentFilters = {
+    series: "All series",
+    collab: "all",
+    keyword: "",
+    sort: "release-desc"
+  };
 
   const setView = (view) => {
+    currentView = view;
     const signalActive = view === "signal";
     signalViewButton.classList.toggle("is-active", signalActive);
     gridViewButton.classList.toggle("is-active", !signalActive);
@@ -50,7 +63,7 @@ async function initCatalogPage() {
     gridViewButton.setAttribute("aria-selected", String(!signalActive));
     signalArchiveSection.hidden = !signalActive;
     gridSection.hidden = signalActive;
-    hideArchiveHovercard();
+    statusMode.textContent = signalActive ? "Signal View" : "Grid View";
   };
 
   const render = () => {
@@ -60,25 +73,28 @@ async function initCatalogPage() {
     seriesFilter.innerHTML = options.map((item) => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`).join("");
     seriesFilter.value = options.includes(currentSeries) ? currentSeries : "All series";
 
-    const filters = {
+    currentFilters = {
       series: seriesFilter.value,
       collab: collabFilter.value,
       keyword: collabSearch.value.trim().toLowerCase(),
       sort: sortFilter.value
     };
-    const filtered = getFilteredProducts(products, filters).sort(sortProducts(filters.sort));
-    const filteredIds = new Set(filtered.map((item) => item.id));
+    filteredProducts = getFilteredProducts(products, currentFilters).sort(sortProducts(currentFilters.sort));
+    const filteredIds = new Set(filteredProducts.map((item) => item.id));
 
     if (!filteredIds.has(activeRecordId)) {
-      activeRecordId = filtered[0]?.id || "";
+      activeRecordId = filteredProducts[0]?.id || "";
     }
 
-    archiveRecords = buildArchiveRecords(products, filteredIds, filters);
-    count.textContent = `${filtered.length} ${filtered.length === 1 ? "record" : "records"}`;
-    emptyState.hidden = filtered.length > 0;
-    grid.innerHTML = filtered.map(renderProductCard).join("");
-    archiveLensStatus.textContent = buildLensStatus(filtered.length, products.length, filters);
-    renderArchiveField();
+    archiveGroups = buildArchiveGroups(filteredProducts, currentFilters);
+    count.textContent = `${filteredProducts.length} ${filteredProducts.length === 1 ? "record" : "records"}`;
+    emptyState.hidden = filteredProducts.length > 0;
+    grid.innerHTML = filteredProducts.map(renderProductCard).join("");
+    archiveLensStatus.textContent = buildLensStatus(filteredProducts.length, products.length, currentFilters);
+    archiveRailSummary.textContent = `${archiveGroups.length} ${archiveGroups.length === 1 ? "active rail" : "active rails"}`;
+    statusLens.textContent = buildStatusLens(currentFilters);
+    statusCount.textContent = String(filteredProducts.length);
+    renderArchiveRails(currentFilters);
     renderRecordPanel();
 
     grid.querySelectorAll("[data-view-id]").forEach((button) => {
@@ -97,6 +113,14 @@ async function initCatalogPage() {
   sortFilter.addEventListener("change", render);
   signalViewButton.addEventListener("click", () => setView("signal"));
   gridViewButton.addEventListener("click", () => setView("grid"));
+  resetArchiveButton.addEventListener("click", () => {
+    resetArchiveFilters();
+    render();
+  });
+  statusResetButton.addEventListener("click", () => {
+    resetArchiveFilters();
+    render();
+  });
   closeDialog.addEventListener("click", () => dialog.close());
   dialog.addEventListener("click", (event) => {
     const rect = dialog.getBoundingClientRect();
@@ -110,9 +134,9 @@ async function initCatalogPage() {
     }
   });
   recordOpenDialog.addEventListener("click", () => {
-    const record = archiveRecords.find((item) => item.id === activeRecordId);
+    const record = filteredProducts.find((item) => item.id === activeRecordId);
     if (record) {
-      openDialog(dialog, record.product);
+      openDialog(dialog, record);
     }
   });
 
@@ -121,77 +145,76 @@ async function initCatalogPage() {
   setView("signal");
   render();
 
-  function renderArchiveField() {
-    if (!archiveRecords.length) {
+  function resetArchiveFilters() {
+    seriesFilter.value = "All series";
+    collabFilter.value = "all";
+    collabSearch.value = "";
+    sortFilter.value = "release-desc";
+  }
+
+  function renderArchiveRails(filters) {
+    if (!filteredProducts.length) {
       archiveStage.innerHTML = `
         <div class="archive-empty">
-          <h3>No active signals</h3>
-          <p>The archive field will populate automatically when products are added.</p>
+          <h3>No archived records</h3>
+          <p>Adjust the active lens or add products from the admin panel to populate the archive rails.</p>
         </div>
       `;
-      archiveConnections.innerHTML = "";
-      archiveStage.style.removeProperty("--stage-height");
-      hideArchiveHovercard();
       return;
     }
 
-    const selectedRecord = archiveRecords.find((item) => item.id === activeRecordId) || null;
-    const relatedIds = new Set(selectedRecord ? selectedRecord.related.map((item) => item.id) : []);
-    const stageHeight = Math.max(460, archiveRecords.reduce((max, item) => Math.max(max, item.y * 5.1 + 96), 0));
-    archiveStage.style.setProperty("--stage-height", `${stageHeight}px`);
-    archiveStage.innerHTML = archiveRecords
-      .map((record) => renderArchiveNode(record, record.id === activeRecordId, relatedIds.has(record.id)))
+    const selectedRelations = getRelatedSignals(getActiveRecord() || filteredProducts[0], filteredProducts, new Set(filteredProducts.map((item) => item.id)))
+      .slice(0, 3)
+      .map((item) => item.id);
+    const relatedIds = new Set(selectedRelations);
+
+    archiveStage.innerHTML = archiveGroups
+      .map((group) => renderArchiveRail(group, activeRecordId, relatedIds))
       .join("");
 
-    const buttons = archiveStage.querySelectorAll("[data-record-id]");
-    buttons.forEach((button) => {
-      const record = archiveRecords.find((item) => item.id === button.dataset.recordId);
-      if (!record) {
+    archiveStage.querySelectorAll("[data-record-id]").forEach((button) => {
+      const product = filteredProducts.find((item) => item.id === button.dataset.recordId);
+      if (!product) {
         return;
       }
 
-      button.addEventListener("mouseenter", () => showArchiveHovercard(record, button));
-      button.addEventListener("mousemove", () => positionArchiveHovercard(button));
-      button.addEventListener("mouseleave", hideArchiveHovercard);
-      button.addEventListener("focus", () => showArchiveHovercard(record, button));
-      button.addEventListener("blur", hideArchiveHovercard);
+      button.addEventListener("mouseenter", () => {
+        activeRecordId = product.id;
+        renderArchiveRails(filters);
+        renderRecordPanel();
+      });
+      button.addEventListener("focus", () => {
+        activeRecordId = product.id;
+        renderArchiveRails(filters);
+        renderRecordPanel();
+      });
       button.addEventListener("click", () => {
-        activeRecordId = record.id;
-        renderArchiveField();
+        activeRecordId = product.id;
+        renderArchiveRails(currentFilters);
         renderRecordPanel();
       });
     });
-
-    archiveConnections.setAttribute("viewBox", "0 0 100 100");
-    archiveConnections.innerHTML = selectedRecord
-      ? selectedRecord.related
-          .map((related) => {
-            const dimmedClass = related.isMatch ? "" : ' class="is-dim"';
-            return `<line${dimmedClass} x1="${selectedRecord.x}" y1="${selectedRecord.y}" x2="${related.x}" y2="${related.y}"></line>`;
-          })
-          .join("")
-      : "";
   }
 
   function renderRecordPanel() {
-    const record = archiveRecords.find((item) => item.id === activeRecordId);
-    recordPanel.classList.toggle("has-record", Boolean(record));
-    recordPanelEmpty.hidden = Boolean(record);
-    recordPanelContent.hidden = !record;
+    const product = getActiveRecord();
+    recordPanel.classList.toggle("has-record", Boolean(product));
+    recordPanelEmpty.hidden = Boolean(product);
+    recordPanelContent.hidden = !product;
 
-    if (!record) {
+    if (!product) {
       return;
     }
 
-    const product = record.product;
+    const related = getRelatedSignals(product, filteredProducts, new Set(filteredProducts.map((item) => item.id))).slice(0, 3);
     recordPanelImage.src = product.image;
     recordPanelImage.alt = product.name;
     recordPanelSeries.textContent = product.series || "Archived Product";
     recordPanelName.textContent = product.name;
-    recordPanelArchiveId.textContent = record.archiveId;
+    recordPanelArchiveId.textContent = buildArchiveId(product);
     recordPanelIntro.textContent = product.intro || "No archive note recorded. Core metadata remains available for this product.";
     recordPanelSpecs.innerHTML = `
-      <span class="spec-chip">${record.typeLabel}</span>
+      <span class="spec-chip">${getTypeLabel(product)}</span>
       <span class="spec-chip">${formatDate(product.releaseDate)}</span>
       <span class="spec-chip">${escapeHtml(normalizeMethodLabel(product.method))}</span>
       <span class="spec-chip">${getPriceDisplay(product)}</span>
@@ -202,8 +225,8 @@ async function initCatalogPage() {
       <p class="record-relations__title">Related Signals</p>
       <div class="record-relations__list">
         ${
-          record.related.length
-            ? record.related
+          related.length
+            ? related
                 .map(
                   (item) => `
                     <button class="record-link" type="button" data-related-id="${item.id}">
@@ -220,35 +243,14 @@ async function initCatalogPage() {
     recordPanelRelations.querySelectorAll("[data-related-id]").forEach((button) => {
       button.addEventListener("click", () => {
         activeRecordId = button.dataset.relatedId;
-        renderArchiveField();
+        renderArchiveRails(currentFilters);
         renderRecordPanel();
       });
     });
   }
 
-  function showArchiveHovercard(record, anchor) {
-    archiveHovercard.hidden = false;
-    archiveHovercard.innerHTML = renderArchiveHovercard(record);
-    positionArchiveHovercard(anchor);
-  }
-
-  function positionArchiveHovercard(anchor) {
-    if (archiveHovercard.hidden) {
-      return;
-    }
-    const stageRect = archiveStage.getBoundingClientRect();
-    const anchorRect = anchor.getBoundingClientRect();
-    const offsetX = anchorRect.left - stageRect.left + anchorRect.width / 2;
-    const offsetY = anchorRect.top - stageRect.top;
-    const cardWidth = 250;
-    const x = clamp(offsetX - cardWidth / 2, 12, stageRect.width - cardWidth - 12);
-    const y = Math.max(offsetY - 148, 12);
-    archiveHovercard.style.left = `${x}px`;
-    archiveHovercard.style.top = `${y}px`;
-  }
-
-  function hideArchiveHovercard() {
-    archiveHovercard.hidden = true;
+  function getActiveRecord() {
+    return filteredProducts.find((item) => item.id === activeRecordId) || filteredProducts[0] || null;
   }
 }
 
@@ -610,67 +612,78 @@ function getFilteredProducts(products, filters) {
     });
 }
 
-function buildArchiveRecords(products, filteredIds, filters) {
-  const sorted = [...products].sort(sortProducts("release-desc"));
-  const groupKeys = uniqueCleanList(sorted.map((item) => getArchiveGroupKey(item, filters)));
-  const groupTrackers = new Map();
-  const columns = Math.min(Math.max(groupKeys.length, 1), 3);
-
-  const records = sorted.map((product, index) => {
-    const groupKey = getArchiveGroupKey(product, filters);
-    const groupIndex = Math.max(groupKeys.indexOf(groupKey), 0);
-    const positionIndex = groupTrackers.get(groupKey) || 0;
-    groupTrackers.set(groupKey, positionIndex + 1);
-
-    const column = groupIndex % columns;
-    const rowBand = Math.floor(groupIndex / columns);
-    const baseX = columns === 1 ? 50 : 18 + column * (64 / (columns - 1));
-    const baseY = 18 + rowBand * 30 + positionIndex * 14.5;
-    const jitterSeed = hashString(`${product.id}-${groupKey}`);
-    const x = clamp(baseX + ((jitterSeed % 9) - 4), 8, 92);
-    const y = clamp(baseY + ((Math.floor(jitterSeed / 10) % 7) - 3), 12, 90);
-    const archiveId = buildArchiveId(product);
-    const related = getRelatedSignals(product, sorted, filteredIds)
-      .slice(0, 4)
-      .map((item) => ({
-        ...item,
-        x: 0,
-        y: 0
-      }));
-
-    return {
-      id: product.id,
-      product,
-      archiveId,
-      typeLabel: getTypeLabel(product),
-      groupKey,
-      isMatch: filteredIds.has(product.id),
-      x,
-      y,
-      size: 1 + (index % 3) * 0.18,
-      related
-    };
+function buildArchiveGroups(products, filters) {
+  const groups = new Map();
+  products.forEach((product) => {
+    const group = getArchiveGroup(product, filters);
+    if (!groups.has(group.key)) {
+      groups.set(group.key, {
+        key: group.key,
+        title: group.title,
+        note: group.note,
+        items: []
+      });
+    }
+    groups.get(group.key).items.push(product);
   });
 
-  const recordMap = new Map(records.map((item) => [item.id, item]));
-  records.forEach((record) => {
-    record.related = record.related.map((item) => {
-      const relatedRecord = recordMap.get(item.id);
-      return {
-        ...item,
-        x: relatedRecord?.x || 0,
-        y: relatedRecord?.y || 0
-      };
-    });
-  });
-
-  return records;
+  return [...groups.values()];
 }
 
-function renderArchiveNode(record, isSelected, isRelated) {
+function getArchiveGroup(product, filters) {
+  if (filters.series !== "All series") {
+    const year = (product.releaseDate || "").slice(0, 4) || "Undated";
+    return {
+      key: `year-${year}`,
+      title: `${year} Release Index`,
+      note: `Series focus / ${product.series || "Unclassified"}`
+    };
+  }
+
+  if (filters.collab === "collab") {
+    const brand = product.collabBrand || "Collab Signals";
+    return {
+      key: `brand-${brand}`,
+      title: brand,
+      note: "Collaboration archive rail"
+    };
+  }
+
+  if (filters.collab === "regular") {
+    return {
+      key: `series-${product.series || "Core"}`,
+      title: product.series || "Core Releases",
+      note: "Core release archive rail"
+    };
+  }
+
+  return {
+    key: `series-${product.series || "Archive"}`,
+    title: product.series || "Archive",
+    note: product.isCollab ? "Includes collaboration signals" : "Core release sequence"
+  };
+}
+
+function renderArchiveRail(group, activeRecordId, relatedIds) {
+  return `
+    <section class="archive-rail">
+      <div class="archive-rail__meta">
+        <div>
+          <h3>${escapeHtml(group.title)}</h3>
+          <p>${escapeHtml(group.note)}</p>
+        </div>
+        <span class="archive-rail__count">${group.items.length} ${group.items.length === 1 ? "record" : "records"}</span>
+      </div>
+      <div class="archive-rail__track">
+        ${group.items.map((product) => renderArchiveCapsule(product, product.id === activeRecordId, relatedIds.has(product.id))).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderArchiveCapsule(product, isSelected, isRelated) {
   const classes = [
-    "signal-node",
-    record.isMatch ? "is-match" : "is-dim",
+    "record-capsule",
     isSelected ? "is-selected" : "",
     isRelated ? "is-related" : ""
   ]
@@ -678,35 +691,23 @@ function renderArchiveNode(record, isSelected, isRelated) {
     .join(" ");
 
   return `
-    <button
-      class="${classes}"
-      type="button"
-      data-record-id="${record.id}"
-      style="--x:${record.x}%; --y:${record.y}%; --size:${record.size};"
-      aria-label="${escapeHtml(record.product.name)}"
-    >
-      <span class="signal-node__core"></span>
-      <span class="signal-node__ring"></span>
-      <span class="signal-node__label">${escapeHtml(record.archiveId)}</span>
-    </button>
-  `;
-}
-
-function renderArchiveHovercard(record) {
-  return `
-    <div class="archive-hovercard__media">
-      <img src="${record.product.image}" alt="${escapeHtml(record.product.name)}">
-    </div>
-    <div class="archive-hovercard__body">
-      <p class="eyebrow">${escapeHtml(record.product.series || "Signal Record")}</p>
-      <h3>${escapeHtml(record.product.name)}</h3>
-      <p class="archive-hovercard__id">${escapeHtml(record.archiveId)}</p>
-      <div class="archive-hovercard__meta">
-        <span>${escapeHtml(record.typeLabel)}</span>
-        <span>${escapeHtml(normalizeMethodLabel(record.product.method))}</span>
-        <span>${formatArchiveDate(record.product.releaseDate)}</span>
+    <button class="${classes}" type="button" data-record-id="${product.id}">
+      <div class="record-capsule__media">
+        <img src="${product.image}" alt="${escapeHtml(product.name)}">
       </div>
-    </div>
+      <div class="record-capsule__body">
+        <p class="record-capsule__id">${escapeHtml(buildArchiveId(product))}</p>
+        <h4>${escapeHtml(product.name)}</h4>
+        <div class="record-capsule__meta">
+          <span>${escapeHtml(product.series || "Archive")}</span>
+          <span>${formatArchiveDate(product.releaseDate)}</span>
+        </div>
+        <div class="record-capsule__footer">
+          <span class="record-capsule__type">${escapeHtml(getShortTypeLabel(product))}</span>
+          <span class="record-capsule__method">${escapeHtml(normalizeMethodLabel(product.method))}</span>
+        </div>
+      </div>
+    </button>
   `;
 }
 
@@ -725,18 +726,25 @@ function buildLensStatus(matchCount, totalCount, filters) {
     parts.push(`Brand lens: ${filters.keyword}`);
   }
   return parts.length
-    ? `${parts.join(" · ")} · ${matchCount}/${totalCount} records active`
-    : `All records online · ${totalCount} signals available`;
+    ? `${parts.join(" / ")} / ${matchCount}/${totalCount} records active`
+    : `All records online / ${totalCount} signals available`;
 }
 
-function getArchiveGroupKey(product, filters) {
+function buildStatusLens(filters) {
+  const parts = [];
   if (filters.series !== "All series") {
-    return product.series || "Series";
+    parts.push(filters.series);
   }
-  if (filters.collab === "collab" || filters.collab === "regular") {
-    return getTypeLabel(product);
+  if (filters.collab === "collab") {
+    parts.push("Collab");
   }
-  return product.series || getTypeLabel(product);
+  if (filters.collab === "regular") {
+    parts.push("Regular");
+  }
+  if (filters.keyword) {
+    parts.push(filters.keyword);
+  }
+  return parts.length ? parts.join(" / ") : "All Records";
 }
 
 function buildArchiveId(product) {
@@ -748,6 +756,10 @@ function buildArchiveId(product) {
 
 function getTypeLabel(product) {
   return product.isCollab ? "Collaboration Signal" : "Core Release Signal";
+}
+
+function getShortTypeLabel(product) {
+  return product.isCollab ? "Collab" : "Core";
 }
 
 function getRelatedSignals(product, products, filteredIds) {
@@ -805,18 +817,6 @@ function getInitials(value) {
     .join("")
     .replace(/[^a-z0-9]/gi, "")
     .toUpperCase();
-}
-
-function hashString(value) {
-  let hash = 0;
-  for (let index = 0; index < value.length; index += 1) {
-    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
-  }
-  return hash;
-}
-
-function clamp(value, min, max) {
-  return Math.min(Math.max(value, min), max);
 }
 
 function renderProductCard(product) {
