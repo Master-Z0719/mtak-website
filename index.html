@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -34,19 +34,21 @@
 
       <div class="hero__content">
         <section class="hero__copy">
-          <p class="eyebrow">MTAK OFFICIAL</p>
-          <h1>MTAK more than a knuckle 的官方产品档案。</h1>
+          <p class="eyebrow">MTAK Official</p>
+          <h1>The official MTAK product archive.</h1>
           <p class="hero__text">
-            起始于 2017 年的中国原创 EDC 品牌。这里集中展示 MTAK 的常规作品、限定款以及联名发布，访客可以查看产品图、系列、价格、限量、发售方式、发售日期与完整介绍。
+            Explore regular releases, limited editions, and collaborations in one place.
+            Visitors can browse product images, series, pricing, quantities, release methods,
+            release dates, and any available product notes.
           </p>
           <div class="profile-meta">
-            <span class="profile-chip">中国原创 EDC</span>
-            <span class="profile-chip">上海</span>
-            <span class="profile-chip">产品档案展示</span>
+            <span class="profile-chip">Original EDC Brand</span>
+            <span class="profile-chip">Shanghai</span>
+            <span class="profile-chip">Product Archive</span>
           </div>
           <div class="hero__actions">
-            <a class="button button--primary" href="#catalog">浏览产品</a>
-            <a class="button button--secondary" href="admin.html">管理后台</a>
+            <a class="button button--primary" href="#catalog">Browse Products</a>
+            <a class="button button--secondary" href="admin.html">Open Admin</a>
           </div>
         </section>
 
@@ -57,7 +59,10 @@
           <div class="stat-card">
             <span class="stat-card__label">About MTAK</span>
             <strong>MTAK</strong>
-            <p>more than a knuckle。以原创结构语言、强烈轮廓和材料表达建立辨识度，也通过联名与特别版本扩展品牌边界。</p>
+            <p>
+              MTAK builds a distinct identity through original form language, bold silhouettes,
+              and material expression, while collaborations and special editions keep pushing the brand forward.
+            </p>
           </div>
         </aside>
       </div>
@@ -71,28 +76,28 @@
         </div>
         <div class="filters">
           <label class="field field--compact">
-            <span>系列筛选</span>
+            <span>Series</span>
             <select id="seriesFilter"></select>
           </label>
           <label class="field field--compact">
-            <span>联名筛选</span>
+            <span>Type</span>
             <select id="collabFilter">
-              <option value="all">全部产品</option>
-              <option value="collab">只看联名</option>
-              <option value="regular">非联名</option>
+              <option value="all">All products</option>
+              <option value="collab">Collaborations only</option>
+              <option value="regular">Non-collab only</option>
             </select>
           </label>
           <label class="field field--compact field--wide">
-            <span>联名品牌检索</span>
-            <input id="collabSearch" type="text" placeholder="输入联名品牌名，例如 Tashi">
+            <span>Collab Brand</span>
+            <input id="collabSearch" type="text" placeholder="Search a collab brand, e.g. Tashi">
           </label>
           <label class="field field--compact">
-            <span>排序方式</span>
+            <span>Sort</span>
             <select id="sortFilter">
-              <option value="release-desc">最新发售</option>
-              <option value="release-asc">最早发售</option>
-              <option value="price-desc">价格从高到低</option>
-              <option value="price-asc">价格从低到高</option>
+              <option value="release-desc">Latest release</option>
+              <option value="release-asc">Earliest release</option>
+              <option value="price-desc">Price: high to low</option>
+              <option value="price-asc">Price: low to high</option>
             </select>
           </label>
         </div>
@@ -101,14 +106,14 @@
       <section class="section">
         <div class="catalog-meta">
           <p id="productCount">0 products</p>
-          <p class="catalog-meta__hint">后台更新后，访客页会自动同步展示。</p>
+          <p class="catalog-meta__hint">Updates from the admin panel appear here automatically.</p>
         </div>
         <div id="productGrid" class="product-grid"></div>
         <div id="emptyState" class="empty-state" hidden>
           <img class="empty-state__logo" src="微信图片_2026-03-20_220011_165.jpg" alt="MTAK logo">
-          <h3>还没有产品</h3>
-          <p>请前往后台添加第一款产品。</p>
-          <a class="button button--primary" href="admin.html">进入后台</a>
+          <h3>No products yet</h3>
+          <p>Add the first product from the admin panel.</p>
+          <a class="button button--primary" href="admin.html">Open Admin</a>
         </div>
       </section>
     </main>
@@ -119,7 +124,7 @@
       <img id="dialogImage" alt="">
     </div>
     <div class="dialog__content">
-      <button id="closeDialog" class="dialog__close" aria-label="关闭">×</button>
+      <button id="closeDialog" class="dialog__close" aria-label="Close">×</button>
       <p id="dialogSeries" class="eyebrow"></p>
       <h3 id="dialogName"></h3>
       <div class="dialog__specs" id="dialogSpecs"></div>

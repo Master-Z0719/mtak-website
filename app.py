@@ -151,7 +151,7 @@ def save_uploaded_file(file_storage) -> str:
 
     extension = Path(file_storage.filename).suffix.lower()
     if extension not in ALLOWED_EXTENSIONS:
-        bad_request("仅支持 jpg、jpeg、png、webp、gif 图片。")
+        bad_request("Only jpg, jpeg, png, webp, and gif images are supported.")
 
     safe_name = secure_filename(Path(file_storage.filename).stem) or "product"
     filename = f"{safe_name}-{uuid.uuid4().hex[:10]}{extension}"
@@ -178,6 +178,11 @@ def bad_request(message: str):
 
 def parse_bool(value: str) -> bool:
     return str(value).lower() in {"1", "true", "yes", "on"}
+
+
+def is_hidden_auction(method: str) -> bool:
+    normalized = str(method or "").strip().lower()
+    return normalized in {"暗拍", "hidden auction"}
 
 
 @app.route("/")
@@ -211,9 +216,9 @@ def api_login():
     admin = get_admin_record()
     if username == admin["username"] and check_password_hash(admin["password_hash"], password):
         session["is_admin"] = True
-        return jsonify({"ok": True, "message": "登录成功"})
+        return jsonify({"ok": True, "message": "Login successful."})
 
-    return jsonify(jsonify_error("账号或密码错误，请重试。")), 401
+    return jsonify(jsonify_error("Invalid username or password. Please try again.")), 401
 
 
 @app.route("/api/logout", methods=["POST"])
@@ -242,7 +247,7 @@ def api_update_admin():
     username = str(payload.get("username", "")).strip()
     password = str(payload.get("password", ""))
     if not username or not password:
-        return jsonify(jsonify_error("管理员账号和密码不能为空。")), 400
+        return jsonify(jsonify_error("Admin username and password cannot be empty.")), 400
 
     db = get_db()
     db.execute(
@@ -250,7 +255,7 @@ def api_update_admin():
         (username, generate_password_hash(password), utc_now()),
     )
     db.commit()
-    return jsonify({"ok": True, "message": "管理员账号已更新", "username": username})
+    return jsonify({"ok": True, "message": "Admin credentials updated.", "username": username})
 
 
 @app.route("/api/options/<option_type>", methods=["POST"])
@@ -261,7 +266,7 @@ def api_add_option(option_type: str):
     payload = request.get_json(silent=True) or {}
     name = str(payload.get("name", "")).strip()
     if not name:
-        return jsonify(jsonify_error("名称不能为空。")), 400
+        return jsonify(jsonify_error("Name cannot be empty.")), 400
 
     db = get_db()
     table = "series" if option_type == "series" else "methods"
@@ -400,28 +405,31 @@ def validate_product_form(form, image_file, existing_image: str = "") -> dict:
     release_date = form.get("releaseDate", "").strip()
     collab_brand = form.get("collabBrand", "").strip()
     is_collab = parse_bool(form.get("isCollab", "false"))
+    price_raw = form.get("price", "").strip()
 
     try:
-        price = float(form.get("price", "0"))
+        price = 0.0 if price_raw == "" else float(price_raw)
         quantity = int(form.get("quantity", "0"))
     except ValueError:
-        bad_request("价格或数量格式不正确。")
+        bad_request("Price or quantity has an invalid format.")
 
-    if not all([name, series, method, intro, release_date]):
-        bad_request("请完整填写产品信息。")
+    if not all([name, series, method, release_date]):
+        bad_request("Please complete all required product fields.")
+    if not is_hidden_auction(method) and price_raw == "":
+        bad_request("Price is required unless the release method is Hidden Auction.")
     if price < 0 or quantity < 1:
-        bad_request("价格或数量不合法。")
+        bad_request("Price or quantity is invalid.")
     if is_collab and not collab_brand:
-        bad_request("联名产品需要填写联名品牌名。")
+        bad_request("A collab product requires a collab brand name.")
 
     image_path = save_uploaded_file(image_file) if image_file else existing_image
     if not image_path:
-        bad_request("请上传产品图片。")
+        bad_request("Please upload a product image.")
 
     return {
         "name": name,
         "series": series,
-        "price": price,
+        "price": 0.0 if is_hidden_auction(method) else price,
         "quantity": quantity,
         "method": method,
         "release_date": release_date,
@@ -453,9 +461,9 @@ def root_files(filename: str):
 def handle_error(error):
     description = getattr(error, "description", None)
     if isinstance(description, dict):
-        message = description.get("message", "请求失败")
+        message = description.get("message", "Request failed.")
     else:
-        message = description or "请求失败"
+        message = description or "Request failed."
     return jsonify({"ok": False, "message": message}), getattr(error, "code", 500)
 
 

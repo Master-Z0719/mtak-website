@@ -23,14 +23,14 @@ async function initCatalogPage() {
 
   const render = () => {
     const series = uniqueCleanList(products.map((item) => item.series));
-    const options = ["全部系列", ...series];
-    const currentSeries = seriesFilter.value || "全部系列";
+    const options = ["All series", ...series];
+    const currentSeries = seriesFilter.value || "All series";
     seriesFilter.innerHTML = options.map((item) => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`).join("");
-    seriesFilter.value = options.includes(currentSeries) ? currentSeries : "全部系列";
+    seriesFilter.value = options.includes(currentSeries) ? currentSeries : "All series";
 
     const keyword = collabSearch.value.trim().toLowerCase();
     const filtered = products
-      .filter((item) => seriesFilter.value === "全部系列" || item.series === seriesFilter.value)
+      .filter((item) => seriesFilter.value === "All series" || item.series === seriesFilter.value)
       .filter((item) => {
         if (collabFilter.value === "collab") {
           return item.isCollab;
@@ -96,6 +96,9 @@ async function initAdminPage() {
   const adminCount = document.getElementById("adminCount");
   const cancelEditButton = document.getElementById("cancelEditButton");
   const imageInput = document.getElementById("imageInput");
+  const priceInput = document.getElementById("priceInput");
+  const priceHelp = document.getElementById("priceHelp");
+  const introInput = document.getElementById("introInput");
   const seriesOptions = document.getElementById("seriesOptions");
   const methodOptions = document.getElementById("methodOptions");
   const seriesInput = document.getElementById("seriesInput");
@@ -135,17 +138,30 @@ async function initAdminPage() {
     }
   }
 
+  function syncMethodState() {
+    const hiddenAuction = isHiddenAuction(methodInput.value);
+    priceInput.required = !hiddenAuction;
+    priceInput.disabled = hiddenAuction;
+    priceInput.closest(".field").classList.toggle("field--disabled", hiddenAuction);
+    priceHelp.textContent = hiddenAuction
+      ? "Hidden Auction selected. Price is not required and will display as Unknown."
+      : "Required for standard release methods.";
+    if (hiddenAuction) {
+      priceInput.value = "";
+    }
+  }
+
   function renderOptions() {
     seriesOptions.innerHTML = optionState.series.map((item) => `<option value="${escapeHtml(item)}"></option>`).join("");
     methodOptions.innerHTML = optionState.methods.map((item) => `<option value="${escapeHtml(item)}"></option>`).join("");
 
     seriesChips.innerHTML = optionState.series.length
       ? optionState.series.map((item) => renderChip(item, "series")).join("")
-      : `<p class="muted">还没有系列，先在这里添加。</p>`;
+      : `<p class="muted">No series yet. Add your first one here.</p>`;
 
     methodChips.innerHTML = optionState.methods.length
       ? optionState.methods.map((item) => renderChip(item, "method")).join("")
-      : `<p class="muted">还没有发售方式，先在这里添加。</p>`;
+      : `<p class="muted">No release methods yet. Add your first one here.</p>`;
 
     seriesChips.querySelectorAll("[data-remove-series]").forEach((button) => {
       button.addEventListener("click", async () => {
@@ -170,8 +186,8 @@ async function initAdminPage() {
       : `
         <div class="empty-state empty-state--dark">
           <img class="empty-state__logo" src="微信图片_2026-03-20_220011_165.jpg" alt="MTAK logo">
-          <h3>产品库为空</h3>
-          <p>添加第一款产品后，这里会显示所有条目。</p>
+          <h3>No products saved</h3>
+          <p>Add the first product and it will appear here.</p>
         </div>
       `;
 
@@ -193,33 +209,35 @@ async function initAdminPage() {
   }
 
   function fillForm(product) {
-    formTitle.textContent = `编辑产品: ${product.name}`;
+    formTitle.textContent = `Edit Product: ${product.name}`;
     document.getElementById("productId").value = product.id;
     document.getElementById("nameInput").value = product.name;
     seriesInput.value = product.series;
-    methodInput.value = product.method;
-    document.getElementById("priceInput").value = product.price;
+    methodInput.value = normalizeMethodLabel(product.method);
+    priceInput.value = isHiddenAuction(product.method) ? "" : product.price;
     document.getElementById("quantityInput").value = product.quantity;
     document.getElementById("releaseDateInput").value = product.releaseDate;
-    document.getElementById("introInput").value = product.intro;
+    introInput.value = product.intro || "";
     isCollab = Boolean(product.isCollab);
     collabBrandInput.value = product.collabBrand || "";
     draftImage = "";
     syncCollabState();
+    syncMethodState();
     setImagePreview(product.image);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function resetForm() {
     form.reset();
-    formTitle.textContent = "新增产品";
+    formTitle.textContent = "Add Product";
     document.getElementById("productId").value = "";
     draftImage = "";
     isCollab = false;
     syncCollabState();
+    syncMethodState();
     const imagePreview = document.getElementById("imagePreview");
     imagePreview.className = "image-preview image-preview--empty";
-    imagePreview.innerHTML = "<span>上传后将在这里预览</span>";
+    imagePreview.innerHTML = "<span>Image preview will appear here after upload.</span>";
   }
 
   async function reloadData() {
@@ -286,6 +304,7 @@ async function initAdminPage() {
     optionState.methods = await addOption("methods", name);
     methodInput.value = name;
     newMethodInput.value = "";
+    syncMethodState();
     renderOptions();
   });
 
@@ -303,16 +322,20 @@ async function initAdminPage() {
     syncCollabState();
   });
 
+  methodInput.addEventListener("input", syncMethodState);
+  methodInput.addEventListener("change", syncMethodState);
+
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
+    const hiddenAuction = isHiddenAuction(methodInput.value);
     const formData = new FormData();
     formData.append("name", document.getElementById("nameInput").value.trim());
     formData.append("series", seriesInput.value.trim());
     formData.append("method", methodInput.value.trim());
-    formData.append("price", document.getElementById("priceInput").value);
+    formData.append("price", hiddenAuction ? "" : priceInput.value);
     formData.append("quantity", document.getElementById("quantityInput").value);
     formData.append("releaseDate", document.getElementById("releaseDateInput").value);
-    formData.append("intro", document.getElementById("introInput").value.trim());
+    formData.append("intro", introInput.value.trim());
     formData.append("isCollab", String(isCollab));
     formData.append("collabBrand", collabBrandInput.value.trim());
     if (draftImage) {
@@ -333,11 +356,11 @@ async function initAdminPage() {
     event.preventDefault();
     const password = adminPasswordInput.value.trim();
     if (!password) {
-      alert("请输入新的管理员密码。");
+      alert("Please enter a new admin password.");
       return;
     }
-      const response = await apiFetch("/api/settings/admin", {
-        method: "PUT",
+    const response = await apiFetch("/api/settings/admin", {
+      method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         username: adminUserInput.value.trim(),
@@ -349,6 +372,7 @@ async function initAdminPage() {
   });
 
   syncCollabState();
+  syncMethodState();
   await reloadData();
 }
 
@@ -380,9 +404,9 @@ async function apiFetch(url, options = {}) {
     credentials: "same-origin",
     ...options
   });
-  const data = await response.json().catch(() => ({ ok: false, message: "服务器返回异常" }));
+  const data = await response.json().catch(() => ({ ok: false, message: "The server returned an invalid response." }));
   if (!response.ok || data.ok === false) {
-    throw new Error(data.message || "请求失败");
+    throw new Error(data.message || "Request failed.");
   }
   return data;
 }
@@ -391,14 +415,17 @@ function normalizeProduct(product) {
   return {
     ...product,
     isCollab: Boolean(product.isCollab),
-    collabBrand: product.collabBrand || ""
+    collabBrand: product.collabBrand || "",
+    intro: product.intro || "",
+    method: normalizeMethodLabel(product.method || "")
   };
 }
 
 function renderProductCard(product) {
   const collabBadge = product.isCollab
-    ? `<span class="pill pill--accent">联名 · ${escapeHtml(product.collabBrand || "特别合作")}</span>`
+    ? `<span class="pill pill--accent">Collab · ${escapeHtml(product.collabBrand || "Special Project")}</span>`
     : "";
+  const methodClass = isHiddenAuction(product.method) ? "pill pill--alert" : "pill";
 
   return `
     <article class="product-card">
@@ -414,14 +441,14 @@ function renderProductCard(product) {
           <span class="price-tag">${getPriceDisplay(product)}</span>
         </div>
         <div class="pill-row">
-          <span class="pill">限量 ${product.quantity}</span>
-          <span class="pill">${escapeHtml(product.method)}</span>
+          <span class="pill">Qty ${product.quantity}</span>
+          <span class="${methodClass}">${escapeHtml(normalizeMethodLabel(product.method))}</span>
           ${collabBadge}
         </div>
         <p class="muted">${formatDate(product.releaseDate)}</p>
         <div class="product-card__footer">
           <span class="muted">${releaseStatus(product.releaseDate)}</span>
-          <button class="link-button" type="button" data-view-id="${product.id}">查看详情</button>
+          <button class="link-button" type="button" data-view-id="${product.id}">View Details</button>
         </div>
       </div>
     </article>
@@ -430,8 +457,9 @@ function renderProductCard(product) {
 
 function renderAdminItem(product) {
   const collabMeta = product.isCollab
-    ? `<span class="spec-chip spec-chip--accent">联名 · ${escapeHtml(product.collabBrand || "未填写品牌")}</span>`
+    ? `<span class="spec-chip spec-chip--accent">Collab · ${escapeHtml(product.collabBrand || "Special Project")}</span>`
     : "";
+  const methodClass = isHiddenAuction(product.method) ? "spec-chip spec-chip--alert" : "spec-chip";
 
   return `
     <article class="admin-item">
@@ -446,16 +474,17 @@ function renderAdminItem(product) {
           </div>
           <strong class="price-tag">${getPriceDisplay(product)}</strong>
         </div>
-        <p class="muted">${formatDate(product.releaseDate)} · ${escapeHtml(product.method)}</p>
+        <p class="muted">${formatDate(product.releaseDate)} · ${escapeHtml(normalizeMethodLabel(product.method))}</p>
         <div class="admin-item__footer">
           <div class="spec-grid">
-            <span class="spec-chip">限量 ${product.quantity}</span>
+            <span class="spec-chip">Qty ${product.quantity}</span>
+            <span class="${methodClass}">${escapeHtml(normalizeMethodLabel(product.method))}</span>
             <span class="spec-chip">${releaseStatus(product.releaseDate)}</span>
             ${collabMeta}
           </div>
           <div class="admin-item__actions">
-            <button class="text-button" type="button" data-edit-id="${product.id}">编辑</button>
-            <button class="text-button text-button--danger" type="button" data-delete-id="${product.id}">删除</button>
+            <button class="text-button" type="button" data-edit-id="${product.id}">Edit</button>
+            <button class="text-button text-button--danger" type="button" data-delete-id="${product.id}">Delete</button>
           </div>
         </div>
       </div>
@@ -475,17 +504,19 @@ function renderChip(label, type) {
 
 function openDialog(dialog, product) {
   const collabChip = product.isCollab
-    ? `<span class="spec-chip spec-chip--accent">联名 · ${escapeHtml(product.collabBrand || "特别合作")}</span>`
+    ? `<span class="spec-chip spec-chip--accent">Collab · ${escapeHtml(product.collabBrand || "Special Project")}</span>`
     : "";
+  const methodClass = isHiddenAuction(product.method) ? "spec-chip spec-chip--alert" : "spec-chip";
+
   document.getElementById("dialogImage").src = product.image;
   document.getElementById("dialogImage").alt = product.name;
   document.getElementById("dialogSeries").textContent = product.series;
   document.getElementById("dialogName").textContent = product.name;
-  document.getElementById("dialogIntro").textContent = product.intro;
+  document.getElementById("dialogIntro").textContent = product.intro || "No product notes available.";
   document.getElementById("dialogSpecs").innerHTML = `
     <span class="spec-chip">${getPriceDisplay(product)}</span>
-    <span class="spec-chip">限量 ${product.quantity}</span>
-    <span class="spec-chip">${escapeHtml(product.method)}</span>
+    <span class="spec-chip">Qty ${product.quantity}</span>
+    <span class="${methodClass}">${escapeHtml(normalizeMethodLabel(product.method))}</span>
     ${collabChip}
     <span class="spec-chip">${formatDate(product.releaseDate)}</span>
     <span class="spec-chip">${releaseStatus(product.releaseDate)}</span>
@@ -496,7 +527,7 @@ function openDialog(dialog, product) {
 function setImagePreview(src) {
   const imagePreview = document.getElementById("imagePreview");
   imagePreview.className = "image-preview";
-  imagePreview.innerHTML = `<img src="${src}" alt="产品图片预览">`;
+  imagePreview.innerHTML = `<img src="${src}" alt="Product image preview">`;
 }
 
 function fileToDataUrl(file) {
@@ -514,9 +545,9 @@ function sortProducts(mode) {
       case "release-asc":
         return new Date(a.releaseDate) - new Date(b.releaseDate);
       case "price-desc":
-        return b.price - a.price;
+        return hiddenAuctionSortValue(b) - hiddenAuctionSortValue(a);
       case "price-asc":
-        return a.price - b.price;
+        return hiddenAuctionSortValue(a) - hiddenAuctionSortValue(b);
       case "release-desc":
       default:
         return new Date(b.releaseDate) - new Date(a.releaseDate);
@@ -524,16 +555,20 @@ function sortProducts(mode) {
   };
 }
 
+function hiddenAuctionSortValue(product) {
+  return isHiddenAuction(product.method) ? Number.POSITIVE_INFINITY : Number(product.price || 0);
+}
+
 function releaseStatus(dateString) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const date = new Date(dateString);
-  return date >= today ? "即将发售" : "已发售";
+  return date >= today ? "Upcoming" : "Released";
 }
 
 function formatDate(dateString) {
   const date = new Date(dateString);
-  return new Intl.DateTimeFormat("zh-CN", {
+  return new Intl.DateTimeFormat("en-US", {
     year: "numeric",
     month: "long",
     day: "numeric"
@@ -541,40 +576,30 @@ function formatDate(dateString) {
 }
 
 function formatPrice(value) {
-  return new Intl.NumberFormat("zh-CN", {
+  return new Intl.NumberFormat("en-US", {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2
   }).format(value);
 }
 
 function isHiddenAuction(method) {
-  return String(method || "").trim() === "暗拍";
+  const normalized = String(method || "").trim().toLowerCase();
+  return normalized === "暗拍" || normalized === "hidden auction";
+}
+
+function normalizeMethodLabel(method) {
+  return isHiddenAuction(method) ? "Hidden Auction" : String(method || "").trim();
 }
 
 function getPriceDisplay(product) {
   if (isHiddenAuction(product.method)) {
-    return "Unkown";
+    return "Unknown";
   }
   return `¥${formatPrice(product.price)}`;
 }
 
 function uniqueCleanList(values) {
   return [...new Set(values.map((item) => String(item).trim()).filter(Boolean))];
-}
-
-function createPlaceholder(title) {
-  const safeTitle = escapeXml(title || "MTAK");
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200">
-      <rect width="1200" height="1200" fill="#070707"/>
-      <rect x="64" y="60" width="400" height="72" rx="36" fill="#020203" stroke="#3f95ff" stroke-opacity="0.5"/>
-      <path d="M120 79L144 121H130L120 100L110 121H96L120 79Z" fill="#3f95ff"/>
-      <text x="88" y="220" fill="white" font-family="Arial, sans-serif" font-size="42" letter-spacing="10">MTAK</text>
-      <text x="88" y="320" fill="white" font-family="Arial, sans-serif" font-size="88" font-weight="700">${safeTitle}</text>
-      <text x="88" y="1110" fill="#3f95ff" font-family="Arial, sans-serif" font-size="28" letter-spacing="6">MORE THAN A KNUCKLE</text>
-    </svg>
-  `;
-  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 }
 
 function escapeHtml(text) {
@@ -584,13 +609,4 @@ function escapeHtml(text) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
-}
-
-function escapeXml(text) {
-  return String(text)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&apos;");
 }
