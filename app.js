@@ -13,6 +13,25 @@ async function initCatalogPage() {
   const collabFilter = document.getElementById("collabFilter");
   const collabSearch = document.getElementById("collabSearch");
   const sortFilter = document.getElementById("sortFilter");
+  const signalViewButton = document.getElementById("signalViewButton");
+  const gridViewButton = document.getElementById("gridViewButton");
+  const signalArchiveSection = document.getElementById("signalArchiveSection");
+  const gridSection = document.getElementById("gridSection");
+  const archiveStage = document.getElementById("archiveStage");
+  const archiveConnections = document.getElementById("archiveConnections");
+  const archiveHovercard = document.getElementById("archiveHovercard");
+  const archiveLensStatus = document.getElementById("archiveLensStatus");
+  const recordPanel = document.getElementById("recordPanel");
+  const recordPanelEmpty = document.getElementById("recordPanelEmpty");
+  const recordPanelContent = document.getElementById("recordPanelContent");
+  const recordPanelImage = document.getElementById("recordPanelImage");
+  const recordPanelSeries = document.getElementById("recordPanelSeries");
+  const recordPanelName = document.getElementById("recordPanelName");
+  const recordPanelArchiveId = document.getElementById("recordPanelArchiveId");
+  const recordPanelSpecs = document.getElementById("recordPanelSpecs");
+  const recordPanelIntro = document.getElementById("recordPanelIntro");
+  const recordPanelRelations = document.getElementById("recordPanelRelations");
+  const recordOpenDialog = document.getElementById("recordOpenDialog");
   const grid = document.getElementById("productGrid");
   const count = document.getElementById("productCount");
   const emptyState = document.getElementById("emptyState");
@@ -20,6 +39,19 @@ async function initCatalogPage() {
   const closeDialog = document.getElementById("closeDialog");
 
   let products = [];
+  let archiveRecords = [];
+  let activeRecordId = "";
+
+  const setView = (view) => {
+    const signalActive = view === "signal";
+    signalViewButton.classList.toggle("is-active", signalActive);
+    gridViewButton.classList.toggle("is-active", !signalActive);
+    signalViewButton.setAttribute("aria-selected", String(signalActive));
+    gridViewButton.setAttribute("aria-selected", String(!signalActive));
+    signalArchiveSection.hidden = !signalActive;
+    gridSection.hidden = signalActive;
+    hideArchiveHovercard();
+  };
 
   const render = () => {
     const series = uniqueCleanList(products.map((item) => item.series));
@@ -28,29 +60,26 @@ async function initCatalogPage() {
     seriesFilter.innerHTML = options.map((item) => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`).join("");
     seriesFilter.value = options.includes(currentSeries) ? currentSeries : "All series";
 
-    const keyword = collabSearch.value.trim().toLowerCase();
-    const filtered = products
-      .filter((item) => seriesFilter.value === "All series" || item.series === seriesFilter.value)
-      .filter((item) => {
-        if (collabFilter.value === "collab") {
-          return item.isCollab;
-        }
-        if (collabFilter.value === "regular") {
-          return !item.isCollab;
-        }
-        return true;
-      })
-      .filter((item) => {
-        if (!keyword) {
-          return true;
-        }
-        return item.isCollab && item.collabBrand.toLowerCase().includes(keyword);
-      })
-      .sort(sortProducts(sortFilter.value));
+    const filters = {
+      series: seriesFilter.value,
+      collab: collabFilter.value,
+      keyword: collabSearch.value.trim().toLowerCase(),
+      sort: sortFilter.value
+    };
+    const filtered = getFilteredProducts(products, filters).sort(sortProducts(filters.sort));
+    const filteredIds = new Set(filtered.map((item) => item.id));
 
-    count.textContent = `${filtered.length} products`;
+    if (!filteredIds.has(activeRecordId)) {
+      activeRecordId = filtered[0]?.id || "";
+    }
+
+    archiveRecords = buildArchiveRecords(products, filteredIds, filters);
+    count.textContent = `${filtered.length} ${filtered.length === 1 ? "record" : "records"}`;
     emptyState.hidden = filtered.length > 0;
     grid.innerHTML = filtered.map(renderProductCard).join("");
+    archiveLensStatus.textContent = buildLensStatus(filtered.length, products.length, filters);
+    renderArchiveField();
+    renderRecordPanel();
 
     grid.querySelectorAll("[data-view-id]").forEach((button) => {
       button.addEventListener("click", () => {
@@ -66,6 +95,8 @@ async function initCatalogPage() {
   collabFilter.addEventListener("change", render);
   collabSearch.addEventListener("input", render);
   sortFilter.addEventListener("change", render);
+  signalViewButton.addEventListener("click", () => setView("signal"));
+  gridViewButton.addEventListener("click", () => setView("grid"));
   closeDialog.addEventListener("click", () => dialog.close());
   dialog.addEventListener("click", (event) => {
     const rect = dialog.getBoundingClientRect();
@@ -78,9 +109,147 @@ async function initCatalogPage() {
       dialog.close();
     }
   });
+  recordOpenDialog.addEventListener("click", () => {
+    const record = archiveRecords.find((item) => item.id === activeRecordId);
+    if (record) {
+      openDialog(dialog, record.product);
+    }
+  });
 
   products = await fetchProducts();
+  activeRecordId = products[0]?.id || "";
+  setView("signal");
   render();
+
+  function renderArchiveField() {
+    if (!archiveRecords.length) {
+      archiveStage.innerHTML = `
+        <div class="archive-empty">
+          <h3>No active signals</h3>
+          <p>The archive field will populate automatically when products are added.</p>
+        </div>
+      `;
+      archiveConnections.innerHTML = "";
+      archiveStage.style.removeProperty("--stage-height");
+      hideArchiveHovercard();
+      return;
+    }
+
+    const selectedRecord = archiveRecords.find((item) => item.id === activeRecordId) || null;
+    const relatedIds = new Set(selectedRecord ? selectedRecord.related.map((item) => item.id) : []);
+    const stageHeight = Math.max(460, archiveRecords.reduce((max, item) => Math.max(max, item.y * 5.1 + 96), 0));
+    archiveStage.style.setProperty("--stage-height", `${stageHeight}px`);
+    archiveStage.innerHTML = archiveRecords
+      .map((record) => renderArchiveNode(record, record.id === activeRecordId, relatedIds.has(record.id)))
+      .join("");
+
+    const buttons = archiveStage.querySelectorAll("[data-record-id]");
+    buttons.forEach((button) => {
+      const record = archiveRecords.find((item) => item.id === button.dataset.recordId);
+      if (!record) {
+        return;
+      }
+
+      button.addEventListener("mouseenter", () => showArchiveHovercard(record, button));
+      button.addEventListener("mousemove", () => positionArchiveHovercard(button));
+      button.addEventListener("mouseleave", hideArchiveHovercard);
+      button.addEventListener("focus", () => showArchiveHovercard(record, button));
+      button.addEventListener("blur", hideArchiveHovercard);
+      button.addEventListener("click", () => {
+        activeRecordId = record.id;
+        renderArchiveField();
+        renderRecordPanel();
+      });
+    });
+
+    archiveConnections.setAttribute("viewBox", "0 0 100 100");
+    archiveConnections.innerHTML = selectedRecord
+      ? selectedRecord.related
+          .map((related) => {
+            const dimmedClass = related.isMatch ? "" : ' class="is-dim"';
+            return `<line${dimmedClass} x1="${selectedRecord.x}" y1="${selectedRecord.y}" x2="${related.x}" y2="${related.y}"></line>`;
+          })
+          .join("")
+      : "";
+  }
+
+  function renderRecordPanel() {
+    const record = archiveRecords.find((item) => item.id === activeRecordId);
+    recordPanel.classList.toggle("has-record", Boolean(record));
+    recordPanelEmpty.hidden = Boolean(record);
+    recordPanelContent.hidden = !record;
+
+    if (!record) {
+      return;
+    }
+
+    const product = record.product;
+    recordPanelImage.src = product.image;
+    recordPanelImage.alt = product.name;
+    recordPanelSeries.textContent = product.series || "Archived Product";
+    recordPanelName.textContent = product.name;
+    recordPanelArchiveId.textContent = record.archiveId;
+    recordPanelIntro.textContent = product.intro || "No archive note recorded. Core metadata remains available for this product.";
+    recordPanelSpecs.innerHTML = `
+      <span class="spec-chip">${record.typeLabel}</span>
+      <span class="spec-chip">${formatDate(product.releaseDate)}</span>
+      <span class="spec-chip">${escapeHtml(normalizeMethodLabel(product.method))}</span>
+      <span class="spec-chip">${getPriceDisplay(product)}</span>
+      <span class="spec-chip">Qty ${product.quantity}</span>
+      ${product.isCollab ? `<span class="spec-chip spec-chip--accent">Collab · ${escapeHtml(product.collabBrand || "Special Project")}</span>` : ""}
+    `;
+    recordPanelRelations.innerHTML = `
+      <p class="record-relations__title">Related Signals</p>
+      <div class="record-relations__list">
+        ${
+          record.related.length
+            ? record.related
+                .map(
+                  (item) => `
+                    <button class="record-link" type="button" data-related-id="${item.id}">
+                      <span>${escapeHtml(item.name)}</span>
+                      <small>${escapeHtml(item.reason)}</small>
+                    </button>
+                  `
+                )
+                .join("")
+            : `<p class="muted">No strong related signals detected from the current metadata lens.</p>`
+        }
+      </div>
+    `;
+    recordPanelRelations.querySelectorAll("[data-related-id]").forEach((button) => {
+      button.addEventListener("click", () => {
+        activeRecordId = button.dataset.relatedId;
+        renderArchiveField();
+        renderRecordPanel();
+      });
+    });
+  }
+
+  function showArchiveHovercard(record, anchor) {
+    archiveHovercard.hidden = false;
+    archiveHovercard.innerHTML = renderArchiveHovercard(record);
+    positionArchiveHovercard(anchor);
+  }
+
+  function positionArchiveHovercard(anchor) {
+    if (archiveHovercard.hidden) {
+      return;
+    }
+    const stageRect = archiveStage.getBoundingClientRect();
+    const anchorRect = anchor.getBoundingClientRect();
+    const offsetX = anchorRect.left - stageRect.left + anchorRect.width / 2;
+    const offsetY = anchorRect.top - stageRect.top;
+    const cardWidth = 250;
+    const x = clamp(offsetX - cardWidth / 2, 12, stageRect.width - cardWidth - 12);
+    const y = Math.max(offsetY - 148, 12);
+    archiveHovercard.style.left = `${x}px`;
+    archiveHovercard.style.top = `${y}px`;
+  }
+
+  function hideArchiveHovercard() {
+    archiveHovercard.hidden = true;
+  }
 }
 
 async function initAdminPage() {
@@ -419,6 +588,235 @@ function normalizeProduct(product) {
     intro: product.intro || "",
     method: normalizeMethodLabel(product.method || "")
   };
+}
+
+function getFilteredProducts(products, filters) {
+  return products
+    .filter((item) => filters.series === "All series" || item.series === filters.series)
+    .filter((item) => {
+      if (filters.collab === "collab") {
+        return item.isCollab;
+      }
+      if (filters.collab === "regular") {
+        return !item.isCollab;
+      }
+      return true;
+    })
+    .filter((item) => {
+      if (!filters.keyword) {
+        return true;
+      }
+      return item.isCollab && item.collabBrand.toLowerCase().includes(filters.keyword);
+    });
+}
+
+function buildArchiveRecords(products, filteredIds, filters) {
+  const sorted = [...products].sort(sortProducts("release-desc"));
+  const groupKeys = uniqueCleanList(sorted.map((item) => getArchiveGroupKey(item, filters)));
+  const groupTrackers = new Map();
+  const columns = Math.min(Math.max(groupKeys.length, 1), 3);
+
+  const records = sorted.map((product, index) => {
+    const groupKey = getArchiveGroupKey(product, filters);
+    const groupIndex = Math.max(groupKeys.indexOf(groupKey), 0);
+    const positionIndex = groupTrackers.get(groupKey) || 0;
+    groupTrackers.set(groupKey, positionIndex + 1);
+
+    const column = groupIndex % columns;
+    const rowBand = Math.floor(groupIndex / columns);
+    const baseX = columns === 1 ? 50 : 18 + column * (64 / (columns - 1));
+    const baseY = 18 + rowBand * 30 + positionIndex * 14.5;
+    const jitterSeed = hashString(`${product.id}-${groupKey}`);
+    const x = clamp(baseX + ((jitterSeed % 9) - 4), 8, 92);
+    const y = clamp(baseY + ((Math.floor(jitterSeed / 10) % 7) - 3), 12, 90);
+    const archiveId = buildArchiveId(product);
+    const related = getRelatedSignals(product, sorted, filteredIds)
+      .slice(0, 4)
+      .map((item) => ({
+        ...item,
+        x: 0,
+        y: 0
+      }));
+
+    return {
+      id: product.id,
+      product,
+      archiveId,
+      typeLabel: getTypeLabel(product),
+      groupKey,
+      isMatch: filteredIds.has(product.id),
+      x,
+      y,
+      size: 1 + (index % 3) * 0.18,
+      related
+    };
+  });
+
+  const recordMap = new Map(records.map((item) => [item.id, item]));
+  records.forEach((record) => {
+    record.related = record.related.map((item) => {
+      const relatedRecord = recordMap.get(item.id);
+      return {
+        ...item,
+        x: relatedRecord?.x || 0,
+        y: relatedRecord?.y || 0
+      };
+    });
+  });
+
+  return records;
+}
+
+function renderArchiveNode(record, isSelected, isRelated) {
+  const classes = [
+    "signal-node",
+    record.isMatch ? "is-match" : "is-dim",
+    isSelected ? "is-selected" : "",
+    isRelated ? "is-related" : ""
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return `
+    <button
+      class="${classes}"
+      type="button"
+      data-record-id="${record.id}"
+      style="--x:${record.x}%; --y:${record.y}%; --size:${record.size};"
+      aria-label="${escapeHtml(record.product.name)}"
+    >
+      <span class="signal-node__core"></span>
+      <span class="signal-node__ring"></span>
+      <span class="signal-node__label">${escapeHtml(record.archiveId)}</span>
+    </button>
+  `;
+}
+
+function renderArchiveHovercard(record) {
+  return `
+    <div class="archive-hovercard__media">
+      <img src="${record.product.image}" alt="${escapeHtml(record.product.name)}">
+    </div>
+    <div class="archive-hovercard__body">
+      <p class="eyebrow">${escapeHtml(record.product.series || "Signal Record")}</p>
+      <h3>${escapeHtml(record.product.name)}</h3>
+      <p class="archive-hovercard__id">${escapeHtml(record.archiveId)}</p>
+      <div class="archive-hovercard__meta">
+        <span>${escapeHtml(record.typeLabel)}</span>
+        <span>${escapeHtml(normalizeMethodLabel(record.product.method))}</span>
+        <span>${formatArchiveDate(record.product.releaseDate)}</span>
+      </div>
+    </div>
+  `;
+}
+
+function buildLensStatus(matchCount, totalCount, filters) {
+  const parts = [];
+  if (filters.series !== "All series") {
+    parts.push(`Series lens: ${filters.series}`);
+  }
+  if (filters.collab === "collab") {
+    parts.push("Type lens: Collaboration");
+  }
+  if (filters.collab === "regular") {
+    parts.push("Type lens: Standard");
+  }
+  if (filters.keyword) {
+    parts.push(`Brand lens: ${filters.keyword}`);
+  }
+  return parts.length
+    ? `${parts.join(" · ")} · ${matchCount}/${totalCount} records active`
+    : `All records online · ${totalCount} signals available`;
+}
+
+function getArchiveGroupKey(product, filters) {
+  if (filters.series !== "All series") {
+    return product.series || "Series";
+  }
+  if (filters.collab === "collab" || filters.collab === "regular") {
+    return getTypeLabel(product);
+  }
+  return product.series || getTypeLabel(product);
+}
+
+function buildArchiveId(product) {
+  const year = (product.releaseDate || "").slice(0, 4) || "0000";
+  const seriesCode = getInitials(product.series || "SIG").slice(0, 3).padEnd(3, "X");
+  const token = String(product.id || "").slice(0, 4).toUpperCase();
+  return `MTAK-${year}-${seriesCode}-${token}`;
+}
+
+function getTypeLabel(product) {
+  return product.isCollab ? "Collaboration Signal" : "Core Release Signal";
+}
+
+function getRelatedSignals(product, products, filteredIds) {
+  return products
+    .filter((item) => item.id !== product.id)
+    .map((item) => {
+      let score = 0;
+      let reason = "Temporal adjacency";
+
+      if (product.series && item.series === product.series) {
+        score += 4;
+        reason = `Shared series: ${product.series}`;
+      }
+      if (product.isCollab && item.isCollab && product.collabBrand && item.collabBrand === product.collabBrand) {
+        score += 3;
+        reason = `Shared collab brand: ${product.collabBrand}`;
+      }
+      if (normalizeMethodLabel(product.method) === normalizeMethodLabel(item.method)) {
+        score += 2;
+        reason = `Shared release method: ${normalizeMethodLabel(product.method)}`;
+      }
+      if (getTypeLabel(product) === getTypeLabel(item)) {
+        score += 1;
+      }
+
+      const daysApart = Math.abs(new Date(product.releaseDate) - new Date(item.releaseDate)) / (1000 * 60 * 60 * 24);
+      if (daysApart <= 180) {
+        score += 1;
+      }
+
+      return {
+        id: item.id,
+        name: item.name,
+        score,
+        reason,
+        isMatch: filteredIds.has(item.id)
+      };
+    })
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+}
+
+function formatArchiveDate(dateString) {
+  const date = new Date(dateString);
+  return new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "short"
+  }).format(date);
+}
+
+function getInitials(value) {
+  return String(value)
+    .split(/\s+/)
+    .map((item) => item[0] || "")
+    .join("")
+    .replace(/[^a-z0-9]/gi, "")
+    .toUpperCase();
+}
+
+function hashString(value) {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+  }
+  return hash;
+}
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
 }
 
 function renderProductCard(product) {

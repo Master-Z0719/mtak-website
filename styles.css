@@ -511,6 +511,12 @@ body::after {
   gap: 18px;
 }
 
+.catalog-controls {
+  display: grid;
+  gap: 14px;
+  justify-items: end;
+}
+
 .catalog-meta {
   display: flex;
   justify-content: space-between;
@@ -521,6 +527,342 @@ body::after {
 
 .catalog-meta p {
   margin: 0;
+}
+
+.view-toggle {
+  display: inline-flex;
+  gap: 8px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.view-toggle__button {
+  min-height: 42px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  color: var(--muted);
+  background: transparent;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  transition: color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.view-toggle__button.is-active {
+  color: #081120;
+  background: linear-gradient(180deg, #7cc1ff, #499eff);
+  box-shadow: 0 0 22px rgba(63, 149, 255, 0.24);
+}
+
+.section--archive {
+  overflow: hidden;
+}
+
+.archive-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
+  gap: 18px;
+}
+
+.archive-field,
+.record-panel {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(180deg, rgba(13, 16, 21, 0.98), rgba(7, 9, 12, 0.98));
+}
+
+.archive-field {
+  position: relative;
+  overflow: hidden;
+  min-height: 560px;
+  padding: 16px;
+}
+
+.archive-field::before,
+.record-panel::before {
+  position: absolute;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+}
+
+.archive-field::before {
+  background:
+    radial-gradient(circle at 18% 16%, rgba(63, 149, 255, 0.12), transparent 24%),
+    radial-gradient(circle at 84% 22%, rgba(140, 194, 255, 0.09), transparent 20%),
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: auto, auto, 46px 46px, 46px 46px;
+  opacity: 0.9;
+}
+
+.archive-stage-wrap {
+  position: relative;
+  min-height: 100%;
+}
+
+.archive-stage {
+  position: relative;
+  min-height: var(--stage-height, 520px);
+}
+
+.archive-connections {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.archive-connections line {
+  stroke: rgba(96, 168, 255, 0.34);
+  stroke-width: 0.22;
+  stroke-dasharray: 1.2 1.4;
+}
+
+.archive-connections line.is-dim {
+  stroke: rgba(96, 168, 255, 0.14);
+}
+
+.signal-node {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: calc(26px * var(--size));
+  height: calc(26px * var(--size));
+  border: 0;
+  padding: 0;
+  background: transparent;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+  transition: transform 0.35s ease, opacity 0.35s ease, filter 0.35s ease;
+}
+
+.signal-node:hover,
+.signal-node:focus-visible,
+.signal-node.is-selected {
+  transform: translate(-50%, -50%) scale(1.08);
+}
+
+.signal-node.is-dim {
+  opacity: 0.25;
+  filter: saturate(0.75);
+}
+
+.signal-node.is-related {
+  opacity: 0.88;
+}
+
+.signal-node__core,
+.signal-node__ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+}
+
+.signal-node__core {
+  background: radial-gradient(circle, rgba(177, 220, 255, 0.95), rgba(63, 149, 255, 0.32) 45%, rgba(63, 149, 255, 0.04) 75%);
+  box-shadow:
+    0 0 0 1px rgba(186, 221, 255, 0.4),
+    0 0 18px rgba(63, 149, 255, 0.42);
+}
+
+.signal-node__ring {
+  inset: -8px;
+  border: 1px solid rgba(129, 188, 255, 0.28);
+  opacity: 0.75;
+  animation: archivePulse 9s ease-in-out infinite;
+}
+
+.signal-node.is-selected .signal-node__ring {
+  border-color: rgba(173, 219, 255, 0.82);
+  box-shadow: 0 0 0 1px rgba(136, 196, 255, 0.26), 0 0 34px rgba(63, 149, 255, 0.22);
+}
+
+.signal-node__label {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(198, 222, 255, 0.7);
+  font-size: 0.66rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.archive-hovercard {
+  position: absolute;
+  z-index: 3;
+  width: 250px;
+  overflow: hidden;
+  border: 1px solid rgba(126, 188, 255, 0.22);
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(17, 20, 25, 0.98), rgba(8, 10, 12, 0.98));
+  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(16px);
+  pointer-events: none;
+}
+
+.archive-hovercard__media {
+  aspect-ratio: 1.2 / 1;
+  overflow: hidden;
+  background: #080a0d;
+}
+
+.archive-hovercard__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.archive-hovercard__body {
+  padding: 16px;
+}
+
+.archive-hovercard__body h3 {
+  margin: 10px 0 8px;
+  font-size: 1.1rem;
+}
+
+.archive-hovercard__id {
+  margin: 0;
+  color: rgba(198, 222, 255, 0.76);
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+}
+
+.archive-hovercard__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.archive-hovercard__meta span,
+.record-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid rgba(97, 164, 255, 0.2);
+  border-radius: 999px;
+  background: rgba(63, 149, 255, 0.08);
+  color: rgba(223, 237, 255, 0.86);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.record-panel {
+  position: relative;
+  padding: 20px;
+}
+
+.record-panel::before {
+  background:
+    radial-gradient(circle at top right, rgba(63, 149, 255, 0.16), transparent 34%);
+}
+
+.record-panel__empty {
+  display: grid;
+  place-items: center;
+  min-height: 100%;
+  padding: 32px 18px;
+  text-align: center;
+}
+
+.record-panel__empty h3,
+.record-panel__header h3,
+.archive-empty h3 {
+  margin: 0;
+  font-size: 1.55rem;
+}
+
+.record-panel__content,
+.record-panel__image,
+.record-panel__actions,
+.record-relations {
+  display: grid;
+  gap: 16px;
+}
+
+.record-panel__image {
+  aspect-ratio: 1.08 / 1;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: #090b0f;
+}
+
+.record-panel__image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.record-panel__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: start;
+}
+
+.record-relations {
+  padding-top: 4px;
+}
+
+.record-relations__title {
+  margin: 0;
+  color: rgba(198, 222, 255, 0.82);
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.record-relations__list {
+  display: grid;
+  gap: 10px;
+}
+
+.record-link {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid rgba(97, 164, 255, 0.12);
+  border-radius: 18px;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.03);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 0.18s ease, transform 0.18s ease, background 0.18s ease;
+}
+
+.record-link:hover {
+  transform: translateY(-1px);
+  border-color: rgba(97, 164, 255, 0.28);
+  background: rgba(63, 149, 255, 0.08);
+}
+
+.record-link small {
+  color: var(--muted);
+}
+
+.archive-empty {
+  display: grid;
+  place-items: center;
+  min-height: 420px;
+  padding: 20px;
+  text-align: center;
 }
 
 .product-grid {
@@ -996,6 +1338,18 @@ body::after {
   }
 }
 
+@keyframes archivePulse {
+  0%,
+  100% {
+    transform: scale(0.95);
+    opacity: 0.35;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 0.8;
+  }
+}
+
 @media (max-width: 940px) {
   .hero__content,
   .admin-layout,
@@ -1006,9 +1360,16 @@ body::after {
 
   .section--filters,
   .catalog-meta,
-  .panel__header {
+  .panel__header,
+  .record-panel__header {
     align-items: start;
     flex-direction: column;
+  }
+
+  .catalog-controls,
+  .archive-layout {
+    justify-items: stretch;
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1040,6 +1401,14 @@ body::after {
     grid-template-columns: 1fr;
   }
 
+  .view-toggle {
+    width: 100%;
+  }
+
+  .view-toggle__button {
+    flex: 1;
+  }
+
   .hero__copy,
   .admin-hero__content > div:first-child,
   .hero__panel,
@@ -1053,5 +1422,14 @@ body::after {
   .admin-hero__content h1 {
     max-width: none;
     font-size: 2.9rem;
+  }
+
+  .archive-field,
+  .record-panel {
+    border-radius: 24px;
+  }
+
+  .archive-hovercard {
+    display: none;
   }
 }
