@@ -9,7 +9,6 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 async function initCatalogPage() {
-  const adminOnlyNodes = document.querySelectorAll("[data-admin-only]");
   const heroCarouselImage = document.getElementById("heroCarouselImage");
   const heroCarouselTitle = document.getElementById("heroCarouselTitle");
   const heroCarouselMeta = document.getElementById("heroCarouselMeta");
@@ -58,7 +57,6 @@ async function initCatalogPage() {
   let archivePageState = {};
   let heroCarouselIndex = 0;
   let heroCarouselTimer = 0;
-  let sessionData = { authenticated: false };
   let currentFilters = {
     series: "All series",
     collab: "all",
@@ -78,12 +76,6 @@ async function initCatalogPage() {
     statusMode.textContent = signalActive ? "Signal View" : "Grid View";
     heroStatusMode.textContent = statusMode.textContent;
     syncArchivePulse();
-  };
-
-  const syncAdminEntryPoints = () => {
-    adminOnlyNodes.forEach((node) => {
-      node.hidden = !sessionData.authenticated;
-    });
   };
 
   const syncArchivePulse = () => {
@@ -183,13 +175,7 @@ async function initCatalogPage() {
     }
   });
 
-  const [sessionResponse, productsResponse] = await Promise.all([
-    apiFetch("/api/session").catch(() => ({ authenticated: false })),
-    fetchProducts()
-  ]);
-  sessionData = sessionResponse;
-  syncAdminEntryPoints();
-  products = productsResponse;
+  products = await fetchProducts();
   activeRecordId = products[0]?.id || "";
   startHeroCarousel();
   setView("signal");
