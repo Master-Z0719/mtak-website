@@ -28,7 +28,7 @@
         </a>
         <div class="topbar__actions">
           <a class="ghost-link" href="#catalog">Products</a>
-          <a class="ghost-link" href="admin.html">Admin</a>
+          <a class="ghost-link" href="admin.html" data-admin-only hidden>Admin</a>
         </div>
       </nav>
 
@@ -48,7 +48,7 @@
           </div>
           <div class="hero__actions">
             <a class="button button--primary" href="#catalog">Browse Products</a>
-            <a class="button button--secondary" href="admin.html">Open Admin</a>
+            <a class="button button--secondary" href="admin.html" data-admin-only hidden>Open Admin</a>
           </div>
         </section>
 
@@ -82,18 +82,45 @@
           <div class="archive-toolbar__intro">
             <p class="section__eyebrow">Visitor View</p>
             <h2>Structured Signal Archive</h2>
-            <p class="catalog-meta__hint">
-              Indexed archive rails present each MTAK product as a readable record capsule with live preview and lens-aware grouping.
-            </p>
+            <div class="archive-toolbar__lede">
+              <p class="catalog-meta__hint">
+                Indexed archive rails present each MTAK product as a readable record capsule with live preview and lens-aware grouping.
+              </p>
+              <div class="archive-pulse">
+                <div class="archive-pulse__beam" aria-hidden="true"></div>
+                <div class="archive-pulse__body">
+                  <span class="archive-pulse__label">Signal Pulse</span>
+                  <strong id="archivePulseTitle">Browse by archive lens</strong>
+                  <p>Use filters, jump rails, and open a record without losing context.</p>
+                </div>
+              </div>
+            </div>
+            <div class="archive-hero-metrics" aria-label="Archive overview">
+              <div class="archive-metric">
+                <span class="archive-metric__label">Active mode</span>
+                <strong id="heroStatusMode">Signal View</strong>
+              </div>
+              <div class="archive-metric">
+                <span class="archive-metric__label">Live lens</span>
+                <strong id="heroStatusLens">All Records</strong>
+              </div>
+              <div class="archive-metric">
+                <span class="archive-metric__label">Visible records</span>
+                <strong id="heroStatusCount">0</strong>
+              </div>
+            </div>
           </div>
           <div class="archive-toolbar__controls">
-            <div class="view-toggle" role="tablist" aria-label="Catalog views">
-              <button id="signalViewButton" class="view-toggle__button is-active" type="button" role="tab" aria-selected="true">
-                Signal View
-              </button>
-              <button id="gridViewButton" class="view-toggle__button" type="button" role="tab" aria-selected="false">
-                Grid View
-              </button>
+            <div class="archive-toolbar__topline">
+              <div class="view-toggle" role="tablist" aria-label="Catalog views">
+                <button id="signalViewButton" class="view-toggle__button is-active" type="button" role="tab" aria-selected="true">
+                  Signal View
+                </button>
+                <button id="gridViewButton" class="view-toggle__button" type="button" role="tab" aria-selected="false">
+                  Grid View
+                </button>
+              </div>
+              <button id="resetArchiveButton" class="button button--secondary button--compact archive-toolbar__reset" type="button">Reset Lens</button>
             </div>
             <div class="filters filters--archive">
               <label class="field field--compact">
@@ -121,7 +148,6 @@
                   <option value="price-asc">Price: low to high</option>
                 </select>
               </label>
-              <button id="resetArchiveButton" class="button button--secondary button--compact" type="button">Reset Lens</button>
             </div>
           </div>
         </div>
@@ -185,14 +211,14 @@
       <section id="gridSection" class="section">
         <div class="catalog-meta">
           <p id="productCount">0 products</p>
-          <p class="catalog-meta__hint">Updates from the admin panel appear here automatically.</p>
+          <p class="catalog-meta__hint">Published archive updates appear here automatically.</p>
         </div>
         <div id="productGrid" class="product-grid"></div>
         <div id="emptyState" class="empty-state" hidden>
           <img class="empty-state__logo" src="寰俊鍥剧墖_2026-03-20_220011_165.jpg" alt="MTAK logo">
           <h3>No products yet</h3>
-          <p>Add the first product from the admin panel.</p>
-          <a class="button button--primary" href="admin.html">Open Admin</a>
+          <p>The archive will populate automatically once products are published.</p>
+          <a class="button button--primary" href="admin.html" data-admin-only hidden>Open Admin</a>
         </div>
       </section>
     </main>

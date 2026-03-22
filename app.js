@@ -9,9 +9,14 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 async function initCatalogPage() {
+  const adminOnlyNodes = document.querySelectorAll("[data-admin-only]");
   const heroCarouselImage = document.getElementById("heroCarouselImage");
   const heroCarouselTitle = document.getElementById("heroCarouselTitle");
   const heroCarouselMeta = document.getElementById("heroCarouselMeta");
+  const archivePulseTitle = document.getElementById("archivePulseTitle");
+  const heroStatusMode = document.getElementById("heroStatusMode");
+  const heroStatusLens = document.getElementById("heroStatusLens");
+  const heroStatusCount = document.getElementById("heroStatusCount");
   const seriesFilter = document.getElementById("seriesFilter");
   const collabFilter = document.getElementById("collabFilter");
   const collabSearch = document.getElementById("collabSearch");
@@ -53,6 +58,7 @@ async function initCatalogPage() {
   let archivePageState = {};
   let heroCarouselIndex = 0;
   let heroCarouselTimer = 0;
+  let sessionData = { authenticated: false };
   let currentFilters = {
     series: "All series",
     collab: "all",
@@ -70,6 +76,30 @@ async function initCatalogPage() {
     signalArchiveSection.hidden = !signalActive;
     gridSection.hidden = signalActive;
     statusMode.textContent = signalActive ? "Signal View" : "Grid View";
+    heroStatusMode.textContent = statusMode.textContent;
+    syncArchivePulse();
+  };
+
+  const syncAdminEntryPoints = () => {
+    adminOnlyNodes.forEach((node) => {
+      node.hidden = !sessionData.authenticated;
+    });
+  };
+
+  const syncArchivePulse = () => {
+    const product = getActiveRecord();
+    if (!archivePulseTitle) {
+      return;
+    }
+    if (!filteredProducts.length) {
+      archivePulseTitle.textContent = "Waiting for live records";
+      return;
+    }
+    if (product) {
+      archivePulseTitle.textContent = `${product.name} in ${currentView === "signal" ? "focused" : "grid"} mode`;
+      return;
+    }
+    archivePulseTitle.textContent = "Browse by archive lens";
   };
 
   const render = () => {
@@ -104,8 +134,11 @@ async function initCatalogPage() {
     archiveRailSummary.textContent = `${archiveGroups.length} ${archiveGroups.length === 1 ? "active rail" : "active rails"}`;
     statusLens.textContent = buildStatusLens(currentFilters);
     statusCount.textContent = String(filteredProducts.length);
+    heroStatusLens.textContent = statusLens.textContent;
+    heroStatusCount.textContent = statusCount.textContent;
     renderArchiveRails(currentFilters);
     renderRecordPanel();
+    syncArchivePulse();
 
     grid.querySelectorAll("[data-view-id]").forEach((button) => {
       button.addEventListener("click", () => {
@@ -150,7 +183,13 @@ async function initCatalogPage() {
     }
   });
 
-  products = await fetchProducts();
+  const [sessionResponse, productsResponse] = await Promise.all([
+    apiFetch("/api/session").catch(() => ({ authenticated: false })),
+    fetchProducts()
+  ]);
+  sessionData = sessionResponse;
+  syncAdminEntryPoints();
+  products = productsResponse;
   activeRecordId = products[0]?.id || "";
   startHeroCarousel();
   setView("signal");
@@ -168,7 +207,7 @@ async function initCatalogPage() {
       archiveStage.innerHTML = `
         <div class="archive-empty">
           <h3>No archived records</h3>
-          <p>Adjust the active lens or add products from the admin panel to populate the archive rails.</p>
+          <p>Adjust the active lens and check back after products are published to repopulate the archive rails.</p>
         </div>
       `;
       return;
