@@ -9,13 +9,20 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 async function initCatalogPage() {
+  const heroCarousel = document.getElementById("heroCarousel");
   const heroCarouselImage = document.getElementById("heroCarouselImage");
+  const heroCarouselPrevImage = document.getElementById("heroCarouselPrevImage");
+  const heroCarouselNextImage = document.getElementById("heroCarouselNextImage");
   const heroCarouselTitle = document.getElementById("heroCarouselTitle");
   const heroCarouselMeta = document.getElementById("heroCarouselMeta");
+  const heroCarouselCount = document.getElementById("heroCarouselCount");
+  const heroCarouselProgress = document.getElementById("heroCarouselProgress");
   const archivePulseTitle = document.getElementById("archivePulseTitle");
   const heroStatusMode = document.getElementById("heroStatusMode");
   const heroStatusLens = document.getElementById("heroStatusLens");
   const heroStatusCount = document.getElementById("heroStatusCount");
+  const filterFocusLabel = document.getElementById("filterFocusLabel");
+  const activeFilterChips = document.getElementById("activeFilterChips");
   const seriesFilter = document.getElementById("seriesFilter");
   const collabFilter = document.getElementById("collabFilter");
   const collabSearch = document.getElementById("collabSearch");
@@ -57,6 +64,7 @@ async function initCatalogPage() {
   let archivePageState = {};
   let heroCarouselIndex = 0;
   let heroCarouselTimer = 0;
+  let heroShiftTimer = 0;
   let currentFilters = {
     series: "All series",
     collab: "all",
@@ -128,6 +136,7 @@ async function initCatalogPage() {
     statusCount.textContent = String(filteredProducts.length);
     heroStatusLens.textContent = statusLens.textContent;
     heroStatusCount.textContent = statusCount.textContent;
+    syncFilterSurface();
     renderArchiveRails(currentFilters);
     renderRecordPanel();
     syncArchivePulse();
@@ -178,6 +187,7 @@ async function initCatalogPage() {
   products = await fetchProducts();
   activeRecordId = products[0]?.id || "";
   startHeroCarousel();
+  bindHeroCarouselMotion();
   setView("signal");
   render();
 
@@ -323,14 +333,113 @@ async function initCatalogPage() {
     if (!product) {
       return;
     }
+    const prevProduct = getCarouselProduct(heroCarouselIndex - 1);
+    const nextProduct = getCarouselProduct(heroCarouselIndex + 1);
+    const total = products.length || 1;
+    const currentIndexLabel = String(heroCarouselIndex + 1).padStart(2, "0");
+    const totalLabel = String(total).padStart(2, "0");
+
+    heroCarousel.classList.remove("is-shifting");
+    void heroCarousel.offsetWidth;
+
     heroCarouselImage.classList.remove("is-visible");
     window.setTimeout(() => {
-      heroCarouselImage.src = product.image;
-      heroCarouselImage.alt = product.name;
+      applyCarouselImage(heroCarouselImage, product, product.name);
+      applyCarouselImage(heroCarouselPrevImage, prevProduct);
+      applyCarouselImage(heroCarouselNextImage, nextProduct);
       heroCarouselTitle.textContent = product.name;
       heroCarouselMeta.textContent = `${product.series || "Archive"} / ${formatArchiveDate(product.releaseDate)} / ${getShortTypeLabel(product)}`;
+      heroCarouselCount.textContent = `${currentIndexLabel} / ${totalLabel}`;
+      heroCarouselProgress.style.width = `${((heroCarouselIndex + 1) / total) * 100}%`;
       heroCarouselImage.classList.add("is-visible");
+      heroCarousel.classList.add("is-shifting");
     }, 180);
+  }
+
+  function getCarouselProduct(index) {
+    if (!products.length) {
+      return null;
+    }
+    const total = products.length;
+    return products[(index + total) % total];
+  }
+
+  function applyCarouselImage(element, product, altText = "") {
+    if (!element || !product) {
+      return;
+    }
+    element.src = product.image;
+    element.alt = altText;
+  }
+
+  function bindHeroCarouselMotion() {
+    if (!heroCarousel) {
+      return;
+    }
+
+    const resetHeroMotion = () => {
+      heroCarousel.style.setProperty("--hero-tilt-x", "0deg");
+      heroCarousel.style.setProperty("--hero-tilt-y", "0deg");
+      heroCarousel.style.setProperty("--hero-shift-x", "0px");
+      heroCarousel.style.setProperty("--hero-shift-y", "0px");
+    };
+
+    heroCarousel.addEventListener("pointermove", (event) => {
+      const rect = heroCarousel.getBoundingClientRect();
+      const x = (event.clientX - rect.left) / rect.width - 0.5;
+      const y = (event.clientY - rect.top) / rect.height - 0.5;
+      heroCarousel.style.setProperty("--hero-tilt-x", `${-y * 10}deg`);
+      heroCarousel.style.setProperty("--hero-tilt-y", `${x * 16}deg`);
+      heroCarousel.style.setProperty("--hero-shift-x", `${x * 18}px`);
+      heroCarousel.style.setProperty("--hero-shift-y", `${y * 14}px`);
+    });
+
+    heroCarousel.addEventListener("pointerleave", resetHeroMotion);
+
+    const syncHeroScroll = () => {
+      const rect = heroCarousel.getBoundingClientRect();
+      const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 1;
+      const midpoint = rect.top + rect.height / 2;
+      const normalized = Math.max(-1, Math.min(1, (midpoint - viewportHeight / 2) / viewportHeight));
+      heroCarousel.style.setProperty("--hero-scroll-lift", `${normalized * -18}px`);
+    };
+
+    syncHeroScroll();
+    window.addEventListener("scroll", () => {
+      if (heroShiftTimer) {
+        window.cancelAnimationFrame(heroShiftTimer);
+      }
+      heroShiftTimer = window.requestAnimationFrame(syncHeroScroll);
+    }, { passive: true });
+    window.addEventListener("resize", syncHeroScroll);
+  }
+
+  function syncFilterSurface() {
+    if (!filterFocusLabel || !activeFilterChips) {
+      return;
+    }
+
+    filterFocusLabel.textContent = buildLensStatus(filteredProducts.length, products.length, currentFilters);
+    const brandLabel = collabSearch.value.trim();
+    const chips = [
+      `<span class="active-filter-chip active-filter-chip--accent">${filteredProducts.length} results</span>`
+    ];
+
+    if (currentFilters.series !== "All series") {
+      chips.push(`<span class="active-filter-chip">Series: ${escapeHtml(currentFilters.series)}</span>`);
+    }
+    if (currentFilters.collab === "collab") {
+      chips.push(`<span class="active-filter-chip">Type: Collaboration</span>`);
+    }
+    if (currentFilters.collab === "regular") {
+      chips.push(`<span class="active-filter-chip">Type: Regular</span>`);
+    }
+    if (brandLabel) {
+      chips.push(`<span class="active-filter-chip">Brand: ${escapeHtml(brandLabel)}</span>`);
+    }
+    chips.push(`<span class="active-filter-chip">Sort: ${escapeHtml(getSortLabel(currentFilters.sort))}</span>`);
+
+    activeFilterChips.innerHTML = chips.join("");
   }
 }
 
@@ -843,6 +952,19 @@ function buildStatusLens(filters) {
     parts.push(filters.keyword);
   }
   return parts.length ? parts.join(" / ") : "All Records";
+}
+
+function getSortLabel(mode) {
+  if (mode === "release-asc") {
+    return "Earliest release";
+  }
+  if (mode === "price-desc") {
+    return "Price high to low";
+  }
+  if (mode === "price-asc") {
+    return "Price low to high";
+  }
+  return "Latest release";
 }
 
 function buildArchiveId(product) {

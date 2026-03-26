@@ -52,13 +52,31 @@
 
         <aside class="hero__panel">
           <div class="stat-card stat-card--visual">
-            <div class="hero-carousel">
+            <div id="heroCarousel" class="hero-carousel">
               <div class="hero-carousel__drift" aria-hidden="true">MTAK</div>
-              <img id="heroCarouselImage" class="hero-carousel__image is-visible" src="寰俊鍥剧墖_2026-03-20_220011_165.jpg" alt="MTAK archive highlight">
+              <div class="hero-carousel__orb hero-carousel__orb--left" aria-hidden="true"></div>
+              <div class="hero-carousel__orb hero-carousel__orb--right" aria-hidden="true"></div>
+              <div class="hero-carousel__scene" aria-hidden="true">
+                <div class="hero-carousel__stack">
+                  <div class="hero-carousel__card hero-carousel__card--prev">
+                    <img id="heroCarouselPrevImage" class="hero-carousel__image hero-carousel__image--ghost" src="寰俊鍥剧墖_2026-03-20_220011_165.jpg" alt="">
+                  </div>
+                  <div class="hero-carousel__card hero-carousel__card--current">
+                    <img id="heroCarouselImage" class="hero-carousel__image is-visible" src="寰俊鍥剧墖_2026-03-20_220011_165.jpg" alt="MTAK archive highlight">
+                  </div>
+                  <div class="hero-carousel__card hero-carousel__card--next">
+                    <img id="heroCarouselNextImage" class="hero-carousel__image hero-carousel__image--ghost" src="寰俊鍥剧墖_2026-03-20_220011_165.jpg" alt="">
+                  </div>
+                </div>
+              </div>
               <div class="hero-carousel__overlay">
                 <p class="hero-carousel__label">Archive Highlights</p>
                 <strong id="heroCarouselTitle">MTAK</strong>
                 <span id="heroCarouselMeta">Structured signal preview</span>
+                <div class="hero-carousel__status">
+                  <span id="heroCarouselCount">01 / 01</span>
+                  <div class="hero-carousel__progress"><span id="heroCarouselProgress"></span></div>
+                </div>
               </div>
             </div>
           </div>
@@ -120,32 +138,41 @@
               </div>
               <button id="resetArchiveButton" class="button button--secondary button--compact archive-toolbar__reset" type="button">Reset Lens</button>
             </div>
-            <div class="filters filters--archive">
-              <label class="field field--compact">
-                <span>Series</span>
-                <select id="seriesFilter"></select>
-              </label>
-              <label class="field field--compact">
-                <span>Type</span>
-                <select id="collabFilter">
-                  <option value="all">All products</option>
-                  <option value="collab">Collaborations only</option>
-                  <option value="regular">Non-collab only</option>
-                </select>
-              </label>
-              <label class="field field--compact field--wide">
-                <span>Collab Brand</span>
-                <input id="collabSearch" type="text" placeholder="Search a collab brand, e.g. Tashi">
-              </label>
-              <label class="field field--compact">
-                <span>Sort</span>
-                <select id="sortFilter">
-                  <option value="release-desc">Latest release</option>
-                  <option value="release-asc">Earliest release</option>
-                  <option value="price-desc">Price: high to low</option>
-                  <option value="price-asc">Price: low to high</option>
-                </select>
-              </label>
+            <div class="filter-surface">
+              <div class="filter-surface__head">
+                <div>
+                  <span class="filter-surface__eyebrow">Filter Matrix</span>
+                  <strong id="filterFocusLabel">All archive signals online</strong>
+                </div>
+                <div id="activeFilterChips" class="active-filter-chips" aria-live="polite"></div>
+              </div>
+              <div class="filters filters--archive">
+                <label class="field field--compact">
+                  <span>Series</span>
+                  <select id="seriesFilter"></select>
+                </label>
+                <label class="field field--compact">
+                  <span>Type</span>
+                  <select id="collabFilter">
+                    <option value="all">All products</option>
+                    <option value="collab">Collaborations only</option>
+                    <option value="regular">Non-collab only</option>
+                  </select>
+                </label>
+                <label class="field field--compact field--wide">
+                  <span>Collab Brand</span>
+                  <input id="collabSearch" type="text" placeholder="Search a collab brand, e.g. Tashi">
+                </label>
+                <label class="field field--compact">
+                  <span>Sort</span>
+                  <select id="sortFilter">
+                    <option value="release-desc">Latest release</option>
+                    <option value="release-asc">Earliest release</option>
+                    <option value="price-desc">Price: high to low</option>
+                    <option value="price-asc">Price: low to high</option>
+                  </select>
+                </label>
+              </div>
             </div>
           </div>
         </div>
